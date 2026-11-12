@@ -1,0 +1,16 @@
+{
+  "name": "রিপিট — BCS প্রশ্ন প্র্যাকটিস",
+  "short_name": "রিপিট",
+  "description": "৪১–৫০তম BCS প্রিলির ১৭০০ প্রশ্ন ব্যাখ্যাসহ, ফ্রি প্র্যাকটিস ও মক টেস্ট",
+  "lang": "bn",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f5",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

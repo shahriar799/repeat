@@ -543,6 +543,16 @@ async function boot() {
   window.addEventListener('hashchange', render);
   window.addEventListener('beforeunload', (e) => { if (Session.mode) { e.preventDefault(); e.returnValue = ''; } });
   render();
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // নতুন ভার্সন এলে একবার রিলোড, যাতে পুরনো কোড না চলে (পরীক্ষার মাঝখানে হলে পরে)
+    const hadOld = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadOld || reloaded) return;
+      reloaded = true;
+      if (Session.mode) window.__updateReady = true; else location.reload();
+    });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+  }
 }
 boot();

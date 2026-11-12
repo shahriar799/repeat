@@ -1,5 +1,5 @@
 /* রিপিট — অফলাইন ক্যাশ। নতুন ভার্সন দিলে VERSION বাড়াতে হবে। */
-const VERSION = 'repeat-v1';
+const VERSION = 'repeat-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'data/bank.json', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

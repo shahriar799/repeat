@@ -88,7 +88,7 @@ function topicStats() {
 /* ---------- রেন্ডারিং অংশ ---------- */
 function expHTML(q) {
   const parts = (q.e || '').split(/\s*•\s*/).filter(Boolean).map((p) => `<p>${esc(p)}</p>`).join('');
-  const imgs = (q.ei || []).map((src) => `<img src="${src}" alt="ব্যাখ্যার চিত্র" loading="lazy">`).join('');
+  const imgs = (q.ei || []).map((src) => `<img src="${src}" alt="ব্যাখ্যার চিত্র" decoding="async">`).join('');
   const note = q.note ? `<p><b>${esc(q.note)}</b></p>` : '';
   return note + parts + imgs || '<p class="muted">এই প্রশ্নের আলাদা ব্যাখ্যা নেই।</p>';
 }

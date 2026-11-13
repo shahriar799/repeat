@@ -226,6 +226,7 @@ function viewHome() {
     ${strong.length ? zone(strong, 'ok') : '<p class="muted small">এখনো যথেষ্ট তথ্য নেই।</p>'}
   </section>
   ${notesSoonHTML()}
+  ${installHTML()}
   ${makerHTML()}
   <p class="small muted" style="text-align:center"><a href="#/about">রিপিট সম্পর্কে</a></p>`;
   const b = $view().querySelector('[data-act="wrong"]');
@@ -688,6 +689,44 @@ function viewAbout() {
 }
 
 
+
+/* ---------- অ্যাপ হিসেবে ইনস্টল (PWA) ---------- */
+let installEvt = null;
+const IN_APP = /FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|; wv\)/i.test(navigator.userAgent);
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; });
+window.addEventListener('appinstalled', () => {
+  installEvt = null;
+  const c = document.getElementById('installcard'); if (c) c.remove();
+});
+function installHTML() {
+  if (isStandalone()) return '';
+  return `<section class="card" id="installcard">
+    <h2>অ্যাপ হিসেবে রাখুন</h2>
+    <p class="small muted">ফোনের হোম স্ক্রিনে রিপিট রাখলে এক চাপে খুলবে, ব্রাউজার খুঁজতে হবে না। একবার খোলার পর ইন্টারনেট ছাড়াও প্র্যাকটিস করা যাবে।</p>
+    <button type="button" class="btn primary block" data-install>${I('down')}অ্যাপ হিসেবে ইনস্টল করুন</button>
+    <div class="note small" id="installhelp" style="margin-top:12px" hidden></div>
+  </section>`;
+}
+function installHelpText() {
+  if (IN_APP) return 'Facebook বা Messenger-এর ভেতর থেকে অ্যাপ ইনস্টল হয় না। ওপরের তিন-ডট মেনু থেকে “ব্রাউজারে খুলুন” (Open in Chrome) চাপুন, তারপর আবার এই বাটন চাপুন।';
+  if (IS_IOS) return 'iPhone-এ: নিচের Share বাটন চাপুন (চারকোনা থেকে ওপরে তীর বের হওয়া চিহ্ন), তারপর “Add to Home Screen”, তারপর “Add”। হোম স্ক্রিনে রিপিটের আইকন চলে আসবে।';
+  return 'ব্রাউজারের ওপরের তিন-ডট মেনু (⋮) থেকে “Install app” বা “Add to Home screen” চাপুন, তারপর “Install”। হোম স্ক্রিনে রিপিটের আইকন চলে আসবে।';
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-install]'); if (!b) return;
+  e.preventDefault();
+  if (installEvt) {
+    const ev = installEvt; installEvt = null;
+    ev.prompt();
+    try { await ev.userChoice; } catch (err) { /* বাতিল */ }
+    return;
+  }
+  const h = document.getElementById('installhelp');
+  if (h) { h.textContent = installHelpText(); h.hidden = false; }
+});
+
 /* ---------- লগইন, অ্যাকাউন্ট, অ্যাডমিন (auth.js → window.RA) ---------- */
 let pendingGuide = false;
 const BCS_OPTS = ['৫১তম BCS', '৫২তম বা পরের BCS', 'ব্যাংক বা অন্য সরকারি চাকরি', 'এখনো ঠিক করিনি'];
@@ -752,7 +791,7 @@ function viewAccount() {
       <h1>অ্যাকাউন্ট</h1>
       <p>Google দিয়ে লগইন করলে:</p>
       <ul class="plain">
-        <li>আপনার অগ্রগতি, ভুল প্রশ্ন আর ফেভারিট অ্যাকাউন্টে সেভ থাকবে, অন্য ফোন বা কম্পিউটারেও পাবেন।</li>
+        <li>আপনার অগ্রগতি, ভুল প্রশ্ন আর ফেভারিট অ্যাকাউন্টে সেভ থাকবে।</li>
         <li>পূর্ণ স্টাডি গাইড PDF নামাতে পারবেন।</li>
       </ul>
       <button class="btn primary block" data-login>${I('user')}Google দিয়ে লগইন</button>
@@ -869,7 +908,7 @@ function viewPrivacy() {
     </ul>
     <h3>তথ্য কীভাবে ব্যবহার হয়</h3>
     <ul>
-      <li>আপনার অগ্রগতি সেভ রাখা আর অন্য ডিভাইসে দেখানো।</li>
+      <li>আপনার অগ্রগতি সেভ রাখা।</li>
       <li>সাইট কতজন ব্যবহার করছে বোঝা, যাতে আরও ভালো করা যায়।</li>
       <li>আপনি “অফার এলে জানাবেন”-এ টিক দিলে তবেই নতুন কোর্স, বই বা অফারের খবর WhatsApp বা ইমেইলে পাঠানো হতে পারে। টিক না দিলে পাঠানো হবে না।</li>
       <li>আপনার তথ্য কারও কাছে বিক্রি বা হস্তান্তর করা হয় না।</li>

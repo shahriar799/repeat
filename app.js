@@ -8,7 +8,7 @@ const SEC_PER_Q = 36;          // ২০০ প্রশ্ন = ২ ঘণ্�
 const WEAK = 0.6, STRONG = 0.8, MIN_TRY = 3;
 const MAKER = 'শাহরিয়ার';
 const WA_NUMBER = '8801314624969';     // ভুল রিপোর্ট ও যোগাযোগ
-const FB_URL = '';                     // ফেসবুক প্রোফাইল লিংক (খালি থাকলে বাটন দেখাবে না)
+const FB_URL = 'https://www.facebook.com/siyama.sahariyara.289749/'; // নির্মাতার ফেসবুক
 
 let BANK = null, BY_ID = {}, SUBJ = {};
 const $view = () => document.getElementById('view');

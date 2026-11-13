@@ -29,7 +29,10 @@ const Store = {
   load() {
     try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d) this.data = Object.assign(this.data, d); } catch (e) { /* প্রাইভেট মোড */ }
   },
-  save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* জায়গা নেই */ } },
+  save(noSync) {
+    try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* জায়গা নেই */ }
+    if (!noSync && window.RA) window.RA.queueSync();
+  },
   record(id, correct) {
     const a = this.data.attempts[id] || { n: 0, c: 0, w: 0 };
     a.n++; if (correct === true) a.c++; if (correct === false) a.w++;
@@ -113,6 +116,10 @@ const ICON_PATHS = {
   x: 'M6 6l12 12 M18 6 6 18',
   alert: 'M12 4 3 20h18z M12 10v4 M12 17h.01',
   pin: 'M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z M12 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 20a8 8 0 0 1 16 0',
+  logout: 'M15 4h4v16h-4 M10 8l-4 4 4 4 M6 12h10',
+  shield: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6z',
+  table: 'M4 5h16v14H4z M4 10h16 M10 5v14',
 };
 const I = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS[n]}"/></svg>`;
 const bar = (p) => `<i style="transform:scaleX(${(Math.max(0, Math.min(100, p)) / 100).toFixed(3)})"></i>`;
@@ -138,7 +145,7 @@ let NOTES = {};
 const hasNote = (s, t) => !!(NOTES[s] && NOTES[s][t]);
 const readySubjects = () => SUBJ_ORDER.filter((s) => NOTES[s] && Object.keys(NOTES[s]).length);
 const GUIDE_PDF = 'guide/Repeat-Study-Guide.pdf';
-const GUIDE_BTN = `<a class="btn block" style="margin-top:8px" href="${GUIDE_PDF}" download="Repeat-Study-Guide.pdf">${I('down')}পূর্ণ স্টাডি গাইড PDF</a>`;
+const GUIDE_BTN = `<button type="button" class="btn block" style="margin-top:8px" data-guide>${I('down')}পূর্ণ স্টাডি গাইড PDF</button>`;
 function notesSoonHTML() {
   const ready = readySubjects();
   const left = SUBJ_ORDER.length - ready.length;
@@ -169,7 +176,7 @@ const metaLine = (x) => `<span class="tag">${bcsLabel(x.b)}</span>`;
 /* ---------- রাউটার ---------- */
 const routes = {
   '': viewHome, practice: viewPracticeSetup, mock: viewMockSetup, quiz: viewQuiz, mocktest: viewMockTest,
-  result: viewResult, notebook: viewNotebook, guide: viewGuide, notes: viewNotes, about: viewAbout,
+  result: viewResult, notebook: viewNotebook, guide: viewGuide, notes: viewNotes, about: viewAbout, account: viewAccount, admin: viewAdmin, privacy: viewPrivacy,
 };
 function go(path) { location.hash = '#/' + path; }
 function render() {
@@ -680,6 +687,201 @@ function viewAbout() {
   };
 }
 
+
+/* ---------- লগইন, অ্যাকাউন্ট, অ্যাডমিন (auth.js → window.RA) ---------- */
+let pendingGuide = false;
+const BCS_OPTS = ['৫১তম BCS', '৫২তম বা পরের BCS', 'ব্যাংক বা অন্য সরকারি চাকরি', 'এখনো ঠিক করিনি'];
+function renderAcct() {
+  const el = document.getElementById('acct'); if (!el) return;
+  const RA = window.RA;
+  if (!RA || !RA.ready) { el.innerHTML = ''; el.hidden = true; return; }
+  el.hidden = false;
+  if (!RA.user) { el.className = 'acct btn'; el.innerHTML = 'লগইন'; return; }
+  const u = RA.user;
+  el.className = 'acct av';
+  el.innerHTML = u.photo ? `<img src="${esc(u.photo)}" alt="" width="36" height="36" referrerpolicy="no-referrer">` : esc((u.name || u.email || '?').trim().charAt(0));
+  el.title = u.name || u.email;
+}
+function loginErrorText(e) {
+  if (e && e.code === 'in-app') return 'Facebook বা Messenger-এর ভেতরের ব্রাউজারে Google লগইন কাজ করে না। ওপরের তিন-ডট মেনু থেকে “ব্রাউজারে খুলুন” (Open in Chrome) চাপুন, তারপর লগইন করুন।';
+  if (e && /popup-closed|cancelled-popup/.test(e.code || '')) return '';
+  if (e && /popup-blocked/.test(e.code || '')) return 'ব্রাউজার লগইনের জানালা আটকে দিয়েছে। পপ-আপ চালু করে আবার চেষ্টা করুন।';
+  if (e && /network/.test(e.code || '')) return 'ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না। একটু পরে আবার চেষ্টা করুন।';
+  return 'লগইন করা যায়নি। একটু পরে আবার চেষ্টা করুন।';
+}
+async function doLogin() {
+  const RA = window.RA;
+  if (!RA) { alert('লগইন করতে ইন্টারনেট সংযোগ লাগবে।'); return false; }
+  try { await RA.login(); return true; } catch (e) { const t = loginErrorText(e); if (t) alert(t); return false; }
+}
+function startGuideDownload() {
+  const a = document.createElement('a');
+  a.href = GUIDE_PDF; a.download = 'Repeat-Study-Guide.pdf';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+async function guideClick() {
+  const RA = window.RA;
+  if (RA && RA.user) { startGuideDownload(); return; }
+  if (!confirm('পূর্ণ স্টাডি গাইড PDF নামাতে Google দিয়ে লগইন করতে হবে (একবারই)। লগইন করবেন?')) return;
+  pendingGuide = true;
+  const ok = await doLogin();
+  if (!ok) pendingGuide = false;
+}
+document.addEventListener('click', (e) => {
+  const g = e.target.closest('[data-guide]');
+  if (g) { e.preventDefault(); guideClick(); return; }
+  const l = e.target.closest('[data-login]');
+  if (l) { e.preventDefault(); doLogin(); }
+});
+window.addEventListener('ra-change', () => {
+  renderAcct();
+  const RA = window.RA, name = location.hash.replace(/^#\/?/, '').split('/')[0];
+  if (RA && RA.user && pendingGuide) { pendingGuide = false; startGuideDownload(); }
+  if (RA && RA.user && RA.profile && RA.profile.profileDone === false && name !== 'account' && !Session.mode) { go('account'); return; }
+  if (['account', 'admin'].includes(name)) render();
+});
+
+function viewAccount() {
+  const RA = window.RA, v = $view();
+  if (!RA || !RA.ready) {
+    v.innerHTML = `<section class="card"><h1>অ্যাকাউন্ট</h1><p class="muted">${RA ? 'লোড হচ্ছে…' : 'লগইন করতে ইন্টারনেট সংযোগ লাগবে। সংযোগ থাকলে পেজটা একবার রিফ্রেশ করুন।'}</p></section>`;
+    return;
+  }
+  if (!RA.user) {
+    v.innerHTML = `<section class="card">
+      <h1>অ্যাকাউন্ট</h1>
+      <p>Google দিয়ে লগইন করলে:</p>
+      <ul class="plain">
+        <li>আপনার অগ্রগতি, ভুল প্রশ্ন আর ফেভারিট অ্যাকাউন্টে সেভ থাকবে, অন্য ফোন বা কম্পিউটারেও পাবেন।</li>
+        <li>পূর্ণ স্টাডি গাইড PDF নামাতে পারবেন।</li>
+      </ul>
+      <button class="btn primary block" data-login>${I('user')}Google দিয়ে লগইন</button>
+      ${RA.inAppBrowser ? `<p class="note small" style="margin-top:12px">${esc(loginErrorText({ code: 'in-app' }))}</p>` : ''}
+      <p class="small muted" style="margin-top:12px">লগইন না করেও প্র্যাকটিস, মক টেস্ট আর নোট পড়া যাবে। আমরা শুধু আপনার নাম আর ইমেইল পাই, পাসওয়ার্ড কখনো নয়। <a href="#/privacy">প্রাইভেসি নীতি</a></p>
+    </section>`;
+    return;
+  }
+  const u = RA.user, p = RA.profile || {};
+  const first = p.profileDone === false;
+  v.innerHTML = `
+  <section class="card">
+    <h1>${first ? 'স্বাগতম' : 'আপনার তথ্য'}</h1>
+    ${first ? `<p>লগইন হয়ে গেছে। নিচের দুটো তথ্য দিলে আপনার প্রস্তুতি অনুযায়ী নতুন কিছু এলে জানাতে পারব। দুটোই ঐচ্ছিক।</p>` : ''}
+    <form id="pf" class="form" novalidate>
+      <label for="wa">WhatsApp নম্বর <small class="muted">(ঐচ্ছিক)</small></label>
+      <input id="wa" name="wa" type="tel" inputmode="tel" autocomplete="tel" placeholder="01XXXXXXXXX" value="${esc(p.whatsapp || '')}">
+      <p class="err small" id="waerr" hidden>সঠিক বাংলাদেশি মোবাইল নম্বর দিন, যেমন 01712345678।</p>
+      <label for="bcs">কিসের প্রস্তুতি নিচ্ছেন?</label>
+      <select id="bcs" name="bcs"><option value="">বাছাই করুন</option>${BCS_OPTS.map((o) => `<option ${p.bcs === o ? 'selected' : ''}>${o}</option>`).join('')}</select>
+      <label class="check"><input type="checkbox" id="consent" ${p.consent ? 'checked' : ''}> নতুন কোর্স, বই বা অফার এলে আমাকে WhatsApp বা ইমেইলে জানাবেন।</label>
+      <div class="row" style="margin-top:16px">
+        <button class="btn primary" style="flex:1" type="submit">সেভ করুন</button>
+        ${first ? `<button class="btn" style="flex:1" type="button" data-act="skip">পরে করব</button>` : ''}
+      </div>
+      <p class="small muted" id="pfmsg" role="status"></p>
+    </form>
+  </section>
+  <section class="card">
+    <h2>অ্যাকাউন্ট</h2>
+    <div class="spread"><span>${esc(u.name)}<small class="muted" style="display:block">${esc(u.email)}</small></span>
+      <button class="btn" data-act="logout">${I('logout')}লগআউট</button></div>
+    <p class="small muted" style="margin-top:12px">আপনার অগ্রগতি এই অ্যাকাউন্টে নিজে থেকেই সেভ হয়। <a href="#/privacy">প্রাইভেসি নীতি</a></p>
+    <p id="adminlink"></p>
+  </section>`;
+  const f = document.getElementById('pf');
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    const wa = f.wa.value.trim();
+    const okWa = !wa || /^(?:\+?88)?01[3-9]\d{8}$/.test(wa.replace(/[\s-]/g, ''));
+    document.getElementById('waerr').hidden = okWa;
+    if (!okWa) { f.wa.focus(); return; }
+    const msg = document.getElementById('pfmsg'); msg.textContent = 'সেভ হচ্ছে…';
+    try {
+      await RA.saveProfile({ whatsapp: wa.replace(/[\s-]/g, ''), bcs: f.bcs.value, consent: f.consent.checked });
+      msg.textContent = 'সেভ হয়েছে।';
+      if (first) go('');
+    } catch (err) { msg.textContent = 'সেভ করা যায়নি। ইন্টারনেট দেখে আবার চেষ্টা করুন।'; }
+  };
+  const skip = v.querySelector('[data-act="skip"]');
+  if (skip) skip.onclick = async () => { try { await RA.saveProfile({ whatsapp: '', bcs: '', consent: false }); } catch (e) { /* পরে */ } go(''); };
+  v.querySelector('[data-act="logout"]').onclick = async () => { await RA.logout(); go(''); };
+  RA.checkAdmin().then((ok) => { const el = document.getElementById('adminlink'); if (ok && el) el.innerHTML = `<a class="btn block" href="#/admin">${I('table')}অ্যাডমিন: ব্যবহারকারীর হিসাব</a>`; });
+}
+
+const fmtDate = (d) => (d ? d.toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+async function viewAdmin() {
+  const RA = window.RA, v = $view();
+  if (!RA || !RA.ready) { v.innerHTML = '<p class="card empty">লোড হচ্ছে…</p>'; return; }
+  if (!RA.user) { v.innerHTML = `<section class="card"><h1>অ্যাডমিন</h1><p>এই পেজ দেখতে অ্যাডমিন Gmail দিয়ে লগইন করুন।</p><button class="btn primary block" data-login>${I('user')}Google দিয়ে লগইন</button></section>`; return; }
+  v.innerHTML = '<p class="card empty">হিসাব আনা হচ্ছে…</p>';
+  if (!(await RA.checkAdmin())) { v.innerHTML = '<section class="card"><h1>অ্যাডমিন</h1><p>এই পেজ শুধু অ্যাডমিনের জন্য।</p></section>'; return; }
+  let st, users;
+  try { [st, users] = await Promise.all([RA.adminStats(), RA.adminUsers()]); } catch (e) { v.innerHTML = `<p class="card empty">হিসাব আনা যায়নি (${esc(e.code || e.message || '')})।</p>`; return; }
+  const notIn = Math.max(0, st.visitors - st.visitorsLoggedIn);
+  const tile = (n, label) => `<div class="stat"><b>${bn(n)}</b><span>${label}</span></div>`;
+  v.innerHTML = `
+  <section class="card">
+    <h1>অ্যাডমিন</h1>
+    <div class="grid2">
+      ${tile(st.visitors, 'মোট ভিজিটর (ডিভাইস)')}
+      ${tile(st.users, 'লগইন করা ব্যবহারকারী')}
+      ${tile(notIn, 'লগইন করেনি')}
+      ${tile(st.visitorsToday, 'আজ এসেছে')}
+      ${tile(st.withWa, 'WhatsApp নম্বর দিয়েছে')}
+      ${tile(st.consent, 'অফারে সম্মতি দিয়েছে')}
+      ${tile(st.usersToday, 'আজ নতুন লগইন')}
+      ${tile(st.users7, 'গত ৭ দিনে নতুন লগইন')}
+    </div>
+    <p class="small muted" style="margin-top:12px">ভিজিটর গোনা হয় ডিভাইস ধরে: একজন দুটো ফোনে এলে দুজন ধরা হয়। ব্রাউজারের ডাটা মুছলেও নতুন ধরা হয়। দিনভিত্তিক গ্রাফ পাবেন Firebase কনসোলের Analytics-এ।</p>
+  </section>
+  <section class="card">
+    <div class="spread"><h2>ব্যবহারকারীর তালিকা</h2><button class="btn" data-act="csv">${I('down')}Excel (CSV)</button></div>
+    <div class="tw"><table>
+      <thead><tr><th>নাম</th><th>WhatsApp</th><th>প্রস্তুতি</th><th>সম্মতি</th><th class="num">যোগদান</th></tr></thead>
+      <tbody>${users.slice(0, 100).map((u) => `<tr><td>${esc(u.name)}<small class="muted" style="display:block">${esc(u.email)}</small></td><td>${esc(u.whatsapp)}</td><td>${esc(u.bcs)}</td><td>${u.consent ? 'হ্যাঁ' : ''}</td><td class="num">${fmtDate(u.created)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">এখনো কেউ লগইন করেনি।</td></tr>'}</tbody>
+    </table></div>
+    ${users.length > 100 ? `<p class="small muted">প্রথম ১০০ জন দেখানো হলো। পুরো তালিকা (${bn(users.length)} জন) CSV-তে পাবেন।</p>` : ''}
+  </section>`;
+  v.querySelector('[data-act="csv"]').onclick = () => {
+    const q = (x) => `"${String(x == null ? '' : x).replace(/"/g, '""')}"`;
+    const iso = (d) => (d ? d.toISOString().slice(0, 16).replace('T', ' ') : '');
+    const rows = [['নাম', 'ইমেইল', 'WhatsApp', 'প্রস্তুতি', 'অফারে সম্মতি', 'যোগদান', 'শেষ লগইন']]
+      .concat(users.map((u) => [u.name, u.email, u.whatsapp ? `'${u.whatsapp}` : '', u.bcs, u.consent ? 'হ্যাঁ' : 'না', iso(u.created), iso(u.lastLogin)]));
+    const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `repeat-users-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+}
+
+function viewPrivacy() {
+  $view().innerHTML = `
+  <section class="card note-body">
+    <h1>প্রাইভেসি নীতি</h1>
+    <p class="small muted">হালনাগাদ: ১৪ নভেম্বর ২০২৬</p>
+    <h3>কী তথ্য নেওয়া হয়</h3>
+    <ul>
+      <li><b>লগইন না করলে:</b> কোনো ব্যক্তিগত তথ্য নয়। শুধু আপনার ডিভাইসের জন্য একটা এলোমেলো নম্বর তৈরি হয়, যাতে মোট কতজন সাইটে এসেছে গোনা যায়।</li>
+      <li><b>Google দিয়ে লগইন করলে:</b> আপনার নাম, ইমেইল আর প্রোফাইল ছবি (Google থেকে)। পাসওয়ার্ড কখনো আমাদের কাছে আসে না।</li>
+      <li><b>আপনি নিজে দিলে:</b> WhatsApp নম্বর আর কিসের প্রস্তুতি নিচ্ছেন। দুটোই ঐচ্ছিক।</li>
+      <li><b>প্র্যাকটিসের অগ্রগতি:</b> কোন প্রশ্নে সঠিক বা ভুল করেছেন, ফেভারিট আর পরীক্ষার ইতিহাস। লগইন করলে এগুলো অ্যাকাউন্টে সেভ থাকে।</li>
+      <li><b>Google Analytics:</b> সাইটে কতজন আসছে, কোন এলাকা থেকে, কোন ডিভাইসে, এমন সামগ্রিক হিসাব। এর জন্য ব্রাউজারে কুকি থাকে।</li>
+    </ul>
+    <h3>তথ্য কীভাবে ব্যবহার হয়</h3>
+    <ul>
+      <li>আপনার অগ্রগতি সেভ রাখা আর অন্য ডিভাইসে দেখানো।</li>
+      <li>সাইট কতজন ব্যবহার করছে বোঝা, যাতে আরও ভালো করা যায়।</li>
+      <li>আপনি “অফার এলে জানাবেন”-এ টিক দিলে তবেই নতুন কোর্স, বই বা অফারের খবর WhatsApp বা ইমেইলে পাঠানো হতে পারে। টিক না দিলে পাঠানো হবে না।</li>
+      <li>আপনার তথ্য কারও কাছে বিক্রি বা হস্তান্তর করা হয় না।</li>
+    </ul>
+    <h3>তথ্য কোথায় থাকে</h3>
+    <p>তথ্য থাকে Google-এর Firebase সেবায় (সার্ভার মুম্বাই)। শুধু নির্মাতা (শাহরিয়ার) ব্যবহারকারীর তালিকা দেখতে পারেন।</p>
+    <h3>আপনার অধিকার</h3>
+    <p>যেকোনো সময় অ্যাকাউন্ট পেজ থেকে WhatsApp নম্বর মুছতে বা সম্মতি তুলে নিতে পারবেন। পুরো অ্যাকাউন্ট আর তথ্য মুছতে চাইলে WhatsApp-এ জানান, মুছে দেওয়া হবে।</p>
+    <a class="btn" href="https://wa.me/${WA_NUMBER}" target="_blank" rel="noopener">${I('chat')}WhatsApp-এ জানান</a>
+  </section>`;
+}
+
 /* ---------- শুরু ---------- */
 async function boot() {
   Store.load();
@@ -695,6 +897,8 @@ async function boot() {
   try { NOTES = await (await fetch('data/notes.json')).json(); } catch (e) { NOTES = {}; }
   window.addEventListener('hashchange', render);
   window.addEventListener('beforeunload', (e) => { if (Session.mode) { e.preventDefault(); e.returnValue = ''; } });
+  window.RepeatApp = { Store, rerender: render };
+  renderAcct();
   render();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     // নতুন ভার্সন এলে একবার রিলোড, যাতে পুরনো কোড না চলে (পরীক্ষার মাঝখানে হলে পরে)

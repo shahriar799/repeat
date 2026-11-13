@@ -266,3 +266,20 @@ td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: t
   .exp { background: var(--print-sunk); }
   a { color: var(--print-ink); text-decoration: none; }
 }
+
+/* account */
+.top-in { display: flex; justify-content: space-between; align-items: center; gap: 12px; max-width: 760px; margin: 0 auto; }
+.top-in .brand { margin: 0; }
+.acct { flex: none; }
+.acct.btn { min-height: 40px; padding: 4px 16px; }
+.acct.av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; background: var(--accent); color: var(--accent-ink); font-weight: 700; text-decoration: none; }
+.acct.av img { width: 100%; height: 100%; object-fit: cover; }
+ul.plain { padding-left: 20px; margin: 0 0 16px; }
+.form label { display: block; font-weight: 700; margin: 16px 0 4px; }
+.form input[type="tel"], .form select { width: 100%; min-height: 48px; padding: 8px 16px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-box); }
+.form input:focus-visible, .form select:focus-visible { outline: 3px solid var(--mark); outline-offset: 1px; }
+.form .check { display: flex; gap: 12px; align-items: flex-start; font-weight: 400; margin-top: 20px; cursor: pointer; }
+.form .check input { width: 20px; height: 20px; margin-top: 4px; accent-color: var(--accent); flex: none; }
+.err { color: var(--bad); margin: 4px 0 0; }
+
+[hidden] { display: none !important; }

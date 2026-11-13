@@ -97,19 +97,39 @@ function expHTML(q) {
 }
 function qImgHTML(q) { return (q.qi || []).map((src) => `<div class="qimg"><img src="${src}" alt="প্রশ্নের চিত্র"></div>`).join(''); }
 const ansText = (q) => (q.a == null ? (q.note || 'কোনো অপশন সঠিক নয়') : `(${LETTERS[q.a]}) ${q.o[q.a]}`);
+/* ---------- আইকন (ইমোজির বদলে SVG) ---------- */
+const ICON_PATHS = {
+  home: 'M4 11 12 4l8 7v9h-5v-6H9v6H4z',
+  pen: 'm4 20 1-5L15 5l4 4L9 19z M13 7l4 4',
+  clock: 'M12 6a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M12 10v4l3 2 M10 3h4',
+  book: 'M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z M5 17a3 3 0 0 1 3-3h10',
+  archive: 'M4 5h16v4H4z M6 9v10h12V9 M10 13h4',
+  down: 'M12 4v11 M7 10l5 5 5-5 M5 20h14',
+  chat: 'M4 19l1.5-4A7 7 0 1 1 9 18.5z',
+  fb: 'M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z',
+  flag: 'M6 21V4 M6 4h11l-2 4 2 4H6',
+  star: 'm12 4 2.4 5 5.4.7-4 3.8 1 5.4L12 16.3 7.2 18.9l1-5.4-4-3.8 5.4-.7z',
+  check: 'm5 12 5 5 9-10',
+  x: 'M6 6l12 12 M18 6 6 18',
+  alert: 'M12 4 3 20h18z M12 10v4 M12 17h.01',
+  pin: 'M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z M12 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z',
+};
+const I = (n) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON_PATHS[n]}"/></svg>`;
+const bar = (p) => `<i style="transform:scaleX(${(Math.max(0, Math.min(100, p)) / 100).toFixed(3)})"></i>`;
+
 function reportLink(q) {
   const text = `রিপিট — ভুল রিপোর্ট\n${bcsLabel(q.b)}, প্রশ্ন ${bn(q.n)}\n"${(q.q || 'চিত্রভিত্তিক প্রশ্ন').slice(0, 140)}"\nসমস্যা: `;
   return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
 }
-const reportBtn = (q) => `<a class="rep" href="${reportLink(q)}" target="_blank" rel="noopener" title="এই প্রশ্নে ভুল থাকলে WhatsApp-এ জানান">⚑ ভুল জানান</a>`;
+const reportBtn = (q) => `<a class="rep" href="${reportLink(q)}" target="_blank" rel="noopener" title="এই প্রশ্নে ভুল থাকলে WhatsApp-এ জানান">${I('flag')}ভুল জানান</a>`;
 function makerHTML() {
   return `<footer class="card maker">
     <div class="small muted">নির্মাতা</div>
     <h2 style="margin:2px 0 4px">${esc(MAKER)}</h2>
     <p class="small muted">চাকরিপ্রার্থীদের প্রস্তুতি সহজ করার একটা ফ্রি উদ্যোগ। মতামত বা কোনো ভুল চোখে পড়লে জানাবেন।</p>
     <div class="row">
-      <a class="btn" href="https://wa.me/${WA_NUMBER}" target="_blank" rel="noopener">💬 WhatsApp</a>
-      ${FB_URL ? `<a class="btn" href="${FB_URL}" target="_blank" rel="noopener">ⓕ Facebook</a>` : ''}
+      <a class="btn" href="https://wa.me/${WA_NUMBER}" target="_blank" rel="noopener">${I('chat')}WhatsApp</a>
+      ${FB_URL ? `<a class="btn" href="${FB_URL}" target="_blank" rel="noopener">${I('fb')}Facebook</a>` : ''}
     </div>
   </footer>`;
 }
@@ -118,27 +138,27 @@ let NOTES = {};
 const hasNote = (s, t) => !!(NOTES[s] && NOTES[s][t]);
 const readySubjects = () => SUBJ_ORDER.filter((s) => NOTES[s] && Object.keys(NOTES[s]).length);
 const GUIDE_PDF = 'guide/Repeat-Study-Guide.pdf';
-const GUIDE_BTN = `<a class="btn block" style="margin-top:8px" href="${GUIDE_PDF}" download="Repeat-Study-Guide.pdf">পূর্ণ স্টাডি গাইড PDF</a>`;
+const GUIDE_BTN = `<a class="btn block" style="margin-top:8px" href="${GUIDE_PDF}" download="Repeat-Study-Guide.pdf">${I('down')}পূর্ণ স্টাডি গাইড PDF</a>`;
 function notesSoonHTML() {
   const ready = readySubjects();
   const left = SUBJ_ORDER.length - ready.length;
   return `<section class="card soon">
-    <div class="spread"><h2 style="margin:0">📗 স্টাডি নোট</h2>${left ? `<span class="badge">${ready.length ? 'আরও আসছে' : 'শীঘ্রই আসছে'}</span>` : ''}</div>
+    <div class="spread"><h2 style="margin:0">স্টাডি নোট</h2>${left ? `<span class="badge">${ready.length ? 'আরও আসছে' : 'শীঘ্রই আসছে'}</span>` : ''}</div>
     <p class="small muted" style="margin:6px 0 10px">প্রতিটা টপিকের নিয়ম আর মূল কথা সংক্ষেপে, যা পড়লে ১৭০০ প্রশ্নের সবকিছু জানা হয়ে যাবে। প্র্যাকটিসে যে টপিকে ভুল করবেন, শুধু সেগুলোর নোটও আলাদা করে পাবেন।</p>
-    ${ready.length && left ? `<p class="small" style="margin-bottom:10px">✔ তৈরি: ${ready.map((s) => esc(SUBJ[s])).join(', ')} · বাকি ${bn(left)}টি বিষয় শীঘ্রই</p>` : ''}
-    ${!left ? `<p class="small" style="margin-bottom:10px">✔ ১২টি বিষয়ের নোটই তৈরি।</p>` : ''}
-    ${ready.length ? `<a class="btn primary block" href="#/notes">📗 স্টাডি নোট পড়ুন</a>` : ''}
+    ${ready.length && left ? `<p class="small" style="margin-bottom:10px">তৈরি: ${ready.map((s) => esc(SUBJ[s])).join(', ')} · বাকি ${bn(left)}টি বিষয় শীঘ্রই</p>` : ''}
+    ${!left ? `<p class="small" style="margin-bottom:12px">১২টি বিষয়ের নোটই তৈরি।</p>` : ''}
+    ${ready.length ? `<a class="btn primary block" href="#/notes">${I('book')}স্টাডি নোট পড়ুন</a>` : ''}
     ${!left ? GUIDE_BTN : ''}
   </section>`;
 }
-const metaHTML = (q) => `<div class="meta"><span class="tag">${bcsLabel(q.b)}</span> প্রশ্ন ${bn(q.n)} · ${esc(SUBJ[q.s])} › ${esc(q.t)}</div>`;
+const metaHTML = (q) => `<div class="meta"><span class="tag">${bcsLabel(q.b)}</span>, প্রশ্ন ${bn(q.n)}<br>${esc(SUBJ[q.s])} › ${esc(q.t)}</div>`;
 
 function relatedHTML(q) {
   const r = related(q);
   const tc = topicCount(q), sc = subtopicCount(q);
-  const head = `<h3>📌 এই টপিক BCS-এ কতবার এসেছে?</h3>
+  const head = `<h3>এই টপিক BCS-এ কতবার এসেছে?</h3>
     <p class="small">“${esc(q.u)}” থেকে গত ১০টি BCS-এ <b>${bn(sc)}টি</b> প্রশ্ন, আর পুরো “${esc(q.t)}” টপিক থেকে <b>${bn(tc)}টি</b> প্রশ্ন এসেছে।</p>`;
-  const noteLink = hasNote(q.s, q.t) ? `<a class="btn block" style="margin:6px 0 4px" href="#/notes/${q.s}/${encodeURIComponent(q.t)}" target="_blank" rel="noopener">📗 “${esc(q.t)}” টপিকের স্টাডি নোট পড়ুন</a>` : '';
+  const noteLink = hasNote(q.s, q.t) ? `<a class="btn block" style="margin:6px 0 4px" href="#/notes/${q.s}/${encodeURIComponent(q.t)}" target="_blank" rel="noopener">${I('book')}“${esc(q.t)}” টপিকের স্টাডি নোট পড়ুন</a>` : '';
   if (!r.length) return `<div class="rel">${head}${noteLink}</div>`;
   const items = r.map((x) => `<details><summary>${metaLine(x)} ${esc(x.q || 'চিত্রভিত্তিক প্রশ্ন')}</summary>
       ${qImgHTML(x)}<p class="ans">উত্তর: ${esc(ansText(x))}</p><div class="exp">${expHTML(x)}</div></details>`).join('');
@@ -173,26 +193,26 @@ function viewHome() {
   let c = 0, w = 0; ids.forEach((id) => { c += att[id].c; w += att[id].w; });
   const { weak, strong } = topicStats();
   const wrongNow = ids.filter((id) => att[id].ok === false).length;
-  const zone = (arr, cls) => arr.slice(0, 4).map((m) => `<div class="zone"><span>${esc(m.t)} <small class="muted">· ${esc(SUBJ[m.s])}</small></span><span class="pct ${cls}">${bn(pct(m.c, m.n))}%</span></div>`).join('');
+  const zone = (arr, cls) => arr.slice(0, 4).map((m) => `<div class="zone"><span>${esc(m.t)}<small class="muted">${esc(SUBJ[m.s])}</small></span><span class="pct ${cls}">${bn(pct(m.c, m.n))}%</span></div>`).join('');
   $view().innerHTML = `
-  <section class="card">
-    <h1>আসসালামু আলাইকুম</h1>
-    <p style="margin-bottom:.35rem"><b>চাকরির প্রস্তুতি শুরু হয় বিগত বছরের প্রশ্ন দিয়ে।</b></p>
+  <section class="card hero">
+    <p class="hi">আসসালামু আলাইকুম</p>
+    <h1>চাকরির প্রস্তুতি শুরু হয় বিগত বছরের প্রশ্ন দিয়ে।</h1>
     <p class="muted">১ম থেকে ২০তম, যে গ্রেডের চাকরিই হোক, প্রস্তুতির প্রথম ধাপ BCS-এর প্রশ্ন সমাধান। ৪১–৫০তম BCS প্রিলির <b>${bn(total)}টি প্রশ্ন</b> ব্যাখ্যাসহ এখানে সাজানো আছে, যাতে আপনার শুরুটা সহজ হয়।</p>
     <div class="grid2">
       <div class="stat"><b>${bn(seen)}/${bn(total)}</b><span>প্রশ্ন দেখা হয়েছে</span></div>
       <div class="stat"><b>${bn(pct(c, c + w))}%</b><span>সঠিক উত্তরের হার</span></div>
     </div>
-    <div class="bar" style="margin-top:12px"><i style="width:${pct(seen, total)}%"></i></div>
+    <div class="bar">${bar(pct(seen, total))}</div>
   </section>
-  <section class="row" style="margin-bottom:14px">
-    <a class="btn primary" style="flex:1" href="#/practice">✎ প্র্যাকটিস শুরু</a>
-    <a class="btn" style="flex:1" href="#/mock">⏱ মক টেস্ট</a>
+  <section class="row" style="margin-bottom:24px">
+    <a class="btn primary" style="flex:1" href="#/practice">${I('pen')}প্র্যাকটিস শুরু</a>
+    <a class="btn" style="flex:1" href="#/mock">${I('clock')}মক টেস্ট</a>
   </section>
   ${wrongNow ? `<section class="card spread"><span>আপনার <b>${bn(wrongNow)}টি</b> ভুল প্রশ্ন আবার পড়ার অপেক্ষায়</span><button class="btn" data-act="wrong">আবার দিন</button></section>` : ''}
   <section class="card">
     <h2>উইক জোন (Weak Zone)</h2>
-    ${weak.length ? zone(weak, 'bad') + `<a class="btn block" style="margin-top:12px" href="#/guide">📘 দুর্বল টপিকের বিগত প্রশ্ন সংকলন</a>` : `<p class="muted small">একটা টপিকে অন্তত ${bn(MIN_TRY)}টি প্রশ্নের উত্তর দিলে এখানে দেখাবে কোথায় আপনি দুর্বল।</p>`}
+    ${weak.length ? zone(weak, 'bad') + `<a class="btn block" style="margin-top:12px" href="#/guide">${I('archive')}দুর্বল টপিকের বিগত প্রশ্ন সংকলন</a>` : `<p class="muted small">একটা টপিকে অন্তত ${bn(MIN_TRY)}টি প্রশ্নের উত্তর দিলে এখানে দেখাবে কোথায় আপনি দুর্বল।</p>`}
   </section>
   <section class="card">
     <h2>স্ট্রং জোন (Strong Zone)</h2>
@@ -220,7 +240,7 @@ function viewPracticeSetup() {
   const Q = BANK.questions;
   const subjPicks = SUBJ_ORDER.map((s) => {
     const pool = Q.filter((q) => q.s === s), seen = seenCount(pool);
-    return `<button class="pick ${setup.s === s ? 'on' : ''}" data-s="${s}"><span>${esc(SUBJ[s])}<div class="bar"><i style="width:${pct(seen, pool.length)}%"></i></div></span><small>${bn(seen)}/${bn(pool.length)}</small></button>`;
+    return `<button class="pick ${setup.s === s ? 'on' : ''}" data-s="${s}"><span>${esc(SUBJ[s])}<div class="bar">${bar(pct(seen, pool.length))}</div></span><small>${bn(seen)}/${bn(pool.length)}</small></button>`;
   }).join('');
   const topics = [...new Set(Q.filter((q) => q.s === setup.s).map((q) => q.t))]
     .map((t) => ({ t, pool: Q.filter((q) => q.s === setup.s && q.t === t) }))
@@ -246,7 +266,7 @@ function viewPracticeSetup() {
   <section class="card">
     <h3 class="muted" style="font-weight:500">১. বিষয় বেছে নিন</h3>
     <div class="chips scroll" id="subjrow">${SUBJ_ORDER.map((s) => `<button class="chip ${setup.s === s ? 'on' : ''}" data-s="${s}">${esc(SUBJ[s])}</button>`).join('')}</div>
-    <p class="small muted" style="margin:4px 0 0">← পাশে সরালে আরও বিষয়</p>
+    <p class="small muted" style="margin:4px 0 0">পাশে সরালে আরও বিষয় দেখাবে</p>
   </section>
   <section class="card">
     <h3 class="muted" style="font-weight:500">২. টপিক বেছে নিন</h3>
@@ -259,7 +279,7 @@ function viewPracticeSetup() {
     <div class="chips">${[10, 30, 50].map((n) => `<button class="chip ${setup.n === n ? 'on' : ''}" data-n="${n}">${bn(n)}টি</button>`).join('')}</div>
     <p class="small muted" style="margin-top:10px">এই অংশে নতুন প্রশ্ন বাকি: <b>${bn(pool.length - seen)}টি</b>${pool.length - seen < setup.n ? ' — বাকিগুলো আসবে আপনার আগের ভুল প্রশ্ন থেকে।' : ''}</p>
   </section>
-  <div class="sticky-actions"><button class="btn primary" data-act="start">শুরু করুন →</button></div>`;
+  <div class="sticky-actions"><button class="btn primary" data-act="start">শুরু করুন</button></div>`;
 
   const v = $view();
   const onChip = v.querySelector('#subjrow .chip.on');  // বাছাই করা বিষয় চোখের সামনে রাখো
@@ -302,15 +322,15 @@ function viewQuiz() {
   }).join('');
   let verdict = '';
   if (answered) {
-    verdict = q.a == null ? `<div class="verdict warn">⚠ এই প্রশ্নের কোনো অপশনই সঠিক নয়।</div>`
-      : chosen === q.a ? `<div class="verdict ok">✔ সঠিক উত্তর!</div>`
-        : `<div class="verdict bad">✘ ভুল হয়েছে। সঠিক উত্তর: (${LETTERS[q.a]}) ${esc(q.o[q.a])}</div>`;
+    verdict = q.a == null ? `<div class="verdict warn">${I('alert')}এই প্রশ্নের কোনো অপশনই সঠিক নয়।</div>`
+      : chosen === q.a ? `<div class="verdict ok">${I('check')}সঠিক উত্তর!</div>`
+        : `<div class="verdict bad">${I('x')}ভুল হয়েছে। সঠিক উত্তর: (${LETTERS[q.a]}) ${esc(q.o[q.a])}</div>`;
   }
   const last = Session.i === total - 1;
   $view().innerHTML = `
-  <div class="qhead"><span class="small muted">${esc(Session.label)} · ${bn(Session.i + 1)}/${bn(total)}</span>
-    <span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-act="fav" aria-label="ফেভারিট" title="ফেভারিট করে রাখুন">${fav ? '★' : '☆'}</button></span></div>
-  <div class="progress"><i style="width:${pct(Session.i + (answered ? 1 : 0), total)}%"></i></div>
+  <div class="qhead"><span class="small muted">${esc(Session.label)}, প্রশ্ন ${bn(Session.i + 1)}/${bn(total)}</span>
+    <span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-act="fav" aria-label="ফেভারিট" title="ফেভারিট করে রাখুন">${I('star')}</button></span></div>
+  <div class="progress">${bar(pct(Session.i + (answered ? 1 : 0), total))}</div>
   ${Session.i === 0 && Session.recycled ? `<p class="note small">এই অংশের নতুন প্রশ্ন শেষ হয়ে আসছে, তাই ${bn(Session.recycled)}টি প্রশ্ন আপনার আগের ভুলগুলো থেকে দেওয়া হলো।</p>` : ''}
   <article class="card">
     ${metaHTML(q)}
@@ -323,7 +343,7 @@ function viewQuiz() {
   <div class="sticky-actions">
     ${!answered ? `<button class="btn" data-act="end">শেষ করুন</button>`
       : !Session.revealed ? `<button class="btn primary" data-act="reveal">ব্যাখ্যা দেখুন</button>`
-        : `<button class="btn primary" data-act="next">${last ? 'ফলাফল দেখুন' : 'পরের প্রশ্ন →'}</button>`}
+        : `<button class="btn primary" data-act="next">${last ? 'ফলাফল দেখুন' : 'পরের প্রশ্ন'}</button>`}
   </div>`;
 
   const v = $view();
@@ -333,7 +353,7 @@ function viewQuiz() {
     Store.record(q.id, q.a == null ? null : k === q.a); Store.save();
     viewQuiz();
   }));
-  v.querySelector('[data-act="fav"]').onclick = (e) => { const on = Store.toggleFav(q.id); e.currentTarget.classList.toggle('on', on); e.currentTarget.textContent = on ? '★' : '☆'; };
+  v.querySelector('[data-act="fav"]').onclick = (e) => { const on = Store.toggleFav(q.id); e.currentTarget.classList.toggle('on', on); };
   const act = (n, f) => { const b = v.querySelector(`[data-act="${n}"]`); if (b) b.onclick = f; };
   act('reveal', () => { Session.revealed = true; viewQuiz(); document.getElementById('expbox').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
   act('next', () => { if (last) finishSession(); else { Session.i++; Session.revealed = false; viewQuiz(); window.scrollTo(0, 0); } });
@@ -359,7 +379,7 @@ function viewMockSetup() {
     : `<h2>কয়টি প্রশ্ন?</h2><div class="chips">${[50, 100, 200].map((n) => `<button class="chip ${mockSetup.n === n ? 'on' : ''}" data-n="${n}">${bn(n)}টি · ${bn(n * SEC_PER_Q / 60)} মিনিট</button>`).join('')}</div>
        <p class="small muted" style="margin-top:10px">সব বিষয় থেকে, আগে আপনার না-দেখা প্রশ্ন।</p>`}
   </section>
-  <div class="sticky-actions"><button class="btn primary" data-act="start">পরীক্ষা শুরু করুন →</button></div>`;
+  <div class="sticky-actions"><button class="btn primary" data-act="start">পরীক্ষা শুরু করুন</button></div>`;
   const v = $view();
   v.querySelectorAll('[data-by]').forEach((b) => (b.onclick = () => { mockSetup.by = b.dataset.by; viewMockSetup(); }));
   v.querySelectorAll('[data-b]').forEach((b) => (b.onclick = () => { mockSetup.b = +b.dataset.b; viewMockSetup(); }));
@@ -457,22 +477,22 @@ function viewResult() {
     </div>
     <p class="small" style="margin-top:10px">যেগুলোর উত্তর দিয়েছেন তার <b>${bn(pct(r.c, answered))}%</b> সঠিক।</p>
   </section>
-  <section class="row" style="margin-bottom:14px">
+  <section class="row" style="margin-bottom:24px">
     ${wrongIds.length ? `<button class="btn primary" style="flex:1" data-act="redo">ভুলগুলো আবার দিন</button>` : ''}
-    <a class="btn" style="flex:1" href="#/guide">📘 বিগত প্রশ্ন সংকলন</a>
+    <a class="btn" style="flex:1" href="#/guide">${I('archive')}বিগত প্রশ্ন সংকলন</a>
   </section>
   ${(() => {
     if (!wrongIds.length) return '';
     const withNote = [...new Set(wrongIds.map((id) => BY_ID[id]).filter((q) => hasNote(q.s, q.t)).map((q) => q.s + '|' + q.t))];
     return withNote.length
-      ? `<section class="card"><h2>📗 ভুল হওয়া টপিকের স্টাডি নোট</h2><p class="small muted">এই সেশনে যে ${bn(withNote.length)}টি টপিকে ভুল হয়েছে, সেগুলোর নিয়ম আর মূল কথা।</p><a class="btn primary block" href="#/notes/mine">নোট পড়ুন / PDF করুন</a></section>`
-      : `<p class="note small" style="margin-bottom:14px">📗 যে টপিকগুলোতে ভুল হয়েছে, সেগুলোর <b>স্টাডি নোট</b> শীঘ্রই এখানে পাবেন।</p>`;
+      ? `<section class="card"><h2>ভুল হওয়া টপিকের স্টাডি নোট</h2><p class="small muted">এই সেশনে যে ${bn(withNote.length)}টি টপিকে ভুল হয়েছে, সেগুলোর নিয়ম আর মূল কথা।</p><a class="btn primary block" href="#/notes/mine">নোট পড়ুন / PDF করুন</a></section>`
+      : `<p class="note small" style="margin-bottom:16px">যে টপিকগুলোতে ভুল হয়েছে, সেগুলোর <b>স্টাডি নোট</b> শীঘ্রই এখানে পাবেন।</p>`;
   })()}
   <section class="card"><h2>বিষয়ভিত্তিক ফলাফল</h2>
     <table><thead><tr><th>বিষয়</th><th class="num">সঠিক</th><th class="num">ভুল</th><th class="num">বাদ</th></tr></thead><tbody>${rows}</tbody></table>
   </section>
   <section class="card"><h2>${r.mode === 'mock' ? 'সব প্রশ্নের ব্যাখ্যা' : 'যে প্রশ্নগুলো ভুল হয়েছে'}</h2>
-    ${reviewIdx.length ? reviewIdx.map((i) => reviewItem(r.qs[i], r.ans[i])).join('') : '<p class="empty">কোনো ভুল নেই — চমৎকার! 🎉</p>'}
+    ${reviewIdx.length ? reviewIdx.map((i) => reviewItem(r.qs[i], r.ans[i])).join('') : '<p class="empty">কোনো ভুল নেই, চমৎকার!</p>'}
   </section>`;
   const b = $view().querySelector('[data-act="redo"]');
   if (b) b.onclick = () => startPractice(wrongIds.map((id) => BY_ID[id]), 'ভুলগুলো আবার');
@@ -481,11 +501,11 @@ function viewResult() {
 function reviewItem(q, chosen) {
   const state = chosen === undefined ? '' : chosen === null ? '<span class="muted">উত্তর দেননি</span>'
     : q.a == null ? '<span class="muted">কোনো অপশন সঠিক নয়</span>'
-      : chosen === q.a ? '<span class="pct ok">✔ সঠিক</span>' : `<span class="pct bad">✘ আপনার উত্তর: (${LETTERS[chosen]}) ${esc(q.o[chosen])}</span>`;
+      : chosen === q.a ? '<span class="pct ok">সঠিক</span>' : `<span class="pct bad">আপনার উত্তর: (${LETTERS[chosen]}) ${esc(q.o[chosen])}</span>`;
   const fav = Store.isFav(q.id);
   return `<details class="rel" style="margin:0 0 8px">
     <summary>${metaLine(q)} ${esc(q.q || 'চিত্রভিত্তিক প্রশ্ন')}</summary>
-    <div class="spread"><div class="small">${state}</div><span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${fav ? '★' : '☆'}</button></span></div>
+    <div class="spread"><div class="small">${state}</div><span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${I('star')}</button></span></div>
     ${qImgHTML(q)}
     <p class="ans" style="color:var(--ok);font-weight:600">সঠিক উত্তর: ${esc(ansText(q))}</p>
     <div class="exp">${expHTML(q)}</div>
@@ -494,7 +514,7 @@ function reviewItem(q, chosen) {
 function bindFavButtons() {
   $view().querySelectorAll('[data-fav]').forEach((b) => (b.onclick = (e) => {
     e.preventDefault();
-    const on = Store.toggleFav(b.dataset.fav); b.classList.toggle('on', on); b.textContent = on ? '★' : '☆';
+    const on = Store.toggleFav(b.dataset.fav); b.classList.toggle('on', on);
   }));
 }
 
@@ -513,11 +533,11 @@ function viewNotebook() {
     <button data-tab="fav" class="${nbTab === 'fav' ? 'on' : ''}">ফেভারিট (${bn(fav.length)})</button>
     <button data-tab="hist" class="${nbTab === 'hist' ? 'on' : ''}">ইতিহাস (${bn(hist.length)})</button>
   </div>
-  <a class="btn block" href="#/guide" style="margin-bottom:14px">📘 বিগত প্রশ্ন সংকলন (PDF)</a>
+  <a class="btn block" href="#/guide" style="margin-bottom:16px">${I('archive')}বিগত প্রশ্ন সংকলন (PDF)</a>
   ${nbTab === 'hist' ? `<section class="card">${hist.length ? `<table><thead><tr><th>পরীক্ষা</th><th class="num">ফল</th></tr></thead><tbody>${hist.map((h) => `<tr><td>${esc(h.label)}<div class="small muted">${new Date(h.date).toLocaleDateString('bn-BD')} · ${h.mode === 'mock' ? 'মক টেস্ট' : 'প্র্যাকটিস'}</div></td><td class="num">${bn(h.c)}/${bn(h.n)}${h.mode === 'mock' ? `<div class="small muted">নম্বর ${bn(h.score)}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">এখনো কোনো পরীক্ষা দেননি।</p>'}</section>`
     : `<section class="card">
       ${list.length ? `<button class="btn primary block" data-act="practice" style="margin-bottom:12px">এগুলো প্র্যাকটিস করুন</button>${list.map((q) => reviewItem(q, undefined)).join('')}`
-        : `<p class="empty">${nbTab === 'wrong' ? 'কোনো ভুল প্রশ্ন জমা নেই।' : 'প্রশ্নের পাশের ☆ চাপলে এখানে জমা থাকবে — যেগুলো আন্দাজে মিলেছে বা আবার পড়তে চান।'}</p>`}
+        : `<p class="empty">${nbTab === 'wrong' ? 'কোনো ভুল প্রশ্ন জমা নেই।' : 'প্রশ্নের পাশের তারা চিহ্ন চাপলে এখানে জমা থাকবে — যেগুলো আন্দাজে মিলেছে বা আবার পড়তে চান।'}</p>`}
     </section>`}`;
   const v = $view();
   v.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { nbTab = b.dataset.tab; viewNotebook(); }));
@@ -562,7 +582,7 @@ function viewGuide() {
       <button class="chip ${!guideSubj ? 'on' : ''}" data-g="">আমার দুর্বল টপিক</button>
       ${SUBJ_ORDER.map((s) => `<button class="chip ${guideSubj === s ? 'on' : ''}" data-g="${s}">${esc(SUBJ[s])}</button>`).join('')}
     </div>
-    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:14px">⬇ PDF হিসেবে সেভ / প্রিন্ট করুন</button>` : ''}
+    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:16px">${I('down')}PDF হিসেবে সেভ করুন</button>` : ''}
   </div>
   <div class="only-print"><h1>রিপিট — ${esc(title)}</h1><p>${new Date().toLocaleDateString('bn-BD')}</p></div>
   ${topics.length ? body : `<p class="card empty">এখনো কোনো দুর্বল টপিক পাওয়া যায়নি। কিছু প্র্যাকটিস করুন, অথবা উপর থেকে একটা বিষয় বেছে সেই বিষয়ের পুরো সংকলন দেখুন।</p>`}`;
@@ -592,8 +612,8 @@ function noteTopicHTML(s, t, idx) {
     <p class="small muted">গত ১০টি BCS-এ এই টপিক থেকে <b>${bn(qs.length)}টি</b> প্রশ্ন এসেছে (${years.map((b) => bn(b)).join(', ')}তম)।</p>
     ${NOTES[s][t]}
     <div class="row no-print" style="margin-top:12px">
-      <button class="btn" style="flex:1" data-prac="${s}|${esc(t)}">✎ এই টপিক প্র্যাকটিস</button>
-      <a class="btn" style="flex:1" href="#/guide">📘 বিগত প্রশ্ন সংকলন</a>
+      <button class="btn" style="flex:1" data-prac="${s}|${esc(t)}">${I('pen')}এই টপিক প্র্যাকটিস</button>
+      <a class="btn" style="flex:1" href="#/guide">${I('archive')}বিগত প্রশ্ন সংকলন</a>
     </div>
   </section>`;
 }
@@ -619,7 +639,7 @@ function viewNotes(rest) {
     ${mode === 'master' ? `<div class="chips scroll" id="subjrow" style="margin-bottom:12px">${SUBJ_ORDER.map((s) => ready.includes(s)
       ? `<button class="chip ${notesSubj === s ? 'on' : ''}" data-ns="${s}">${esc(SUBJ[s])}</button>`
       : `<button class="chip" disabled title="শীঘ্রই আসছে">${esc(SUBJ[s])} · শীঘ্রই</button>`).join('')}</div>` : ''}
-    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:8px">⬇ ${mode === 'mine' ? 'এই নোট' : 'এই বিষয়ের নোট'} PDF হিসেবে সেভ / প্রিন্ট করুন</button>` : ''}
+    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:8px">${I('down')}${mode === 'mine' ? 'এই নোট' : 'এই বিষয়ের নোট'} PDF করুন</button>` : ''}
     ${ready.length === SUBJ_ORDER.length ? GUIDE_BTN.replace('margin-top:8px', 'margin-bottom:14px') : ''}
   </div>
   <div class="only-print"><h1>রিপিট — ${esc(title)}</h1><p>${new Date().toLocaleDateString('bn-BD')} · shahriar799.github.io/repeat</p></div>
@@ -652,7 +672,7 @@ function viewAbout() {
     <p>রিপিট একটি সম্পূর্ণ ফ্রি প্ল্যাটফর্ম। এখানে ৪১তম থেকে ৫০তম BCS প্রিলিমিনারির ${bn(BANK.questions.length)}টি প্রশ্ন উত্তর ও ব্যাখ্যাসহ আছে, প্রতিটি প্রশ্ন বিষয় ও টপিক অনুযায়ী সাজানো।</p>
     <p>১ম থেকে ২০তম, যে গ্রেডের চাকরিই হোক, প্রস্তুতি শুরু হয় বিগত বছরের প্রশ্ন দিয়ে, আর BCS-এর এই টপিকগুলো থেকেই প্রশ্ন ঘুরে ফিরে আসে। তাই নাম “রিপিট”।</p>
     <p class="note">আপনার প্রোগ্রেস এখন এই ডিভাইসের ব্রাউজারে জমা থাকে। শিগগিরই Google দিয়ে লগইন যোগ হবে, তখন মোবাইল আর পিসি দুই জায়গাতেই একই প্রোগ্রেস দেখা যাবে।</p>
-    <p class="small muted">কোনো উত্তর বা ব্যাখ্যায় ভুল পেলে প্রশ্নের পাশের “⚑ ভুল জানান” চাপুন, অথবা নিচের WhatsApp-এ জানান।</p>
+    <p class="small muted">কোনো উত্তর বা ব্যাখ্যায় ভুল পেলে প্রশ্নের পাশের “ভুল জানান” চাপুন, অথবা নিচের WhatsApp-এ জানান।</p>
     <button class="btn" data-act="reset">আমার সব প্রোগ্রেস মুছে ফেলুন</button>
   </section>${makerHTML()}`;
   $view().querySelector('[data-act="reset"]').onclick = () => {

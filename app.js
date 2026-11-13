@@ -191,11 +191,11 @@ function viewHome() {
   </section>
   ${wrongNow ? `<section class="card spread"><span>আপনার <b>${bn(wrongNow)}টি</b> ভুল প্রশ্ন আবার পড়ার অপেক্ষায়</span><button class="btn" data-act="wrong">আবার দিন</button></section>` : ''}
   <section class="card">
-    <h2>দুর্বল জায়গা</h2>
+    <h2>উইক জোন (Weak Zone)</h2>
     ${weak.length ? zone(weak, 'bad') + `<a class="btn block" style="margin-top:12px" href="#/guide">📘 দুর্বল টপিকের বিগত প্রশ্ন সংকলন</a>` : `<p class="muted small">একটা টপিকে অন্তত ${bn(MIN_TRY)}টি প্রশ্নের উত্তর দিলে এখানে দেখাবে কোথায় আপনি দুর্বল।</p>`}
   </section>
   <section class="card">
-    <h2>শক্ত জায়গা</h2>
+    <h2>স্ট্রং জোন (Strong Zone)</h2>
     ${strong.length ? zone(strong, 'ok') : '<p class="muted small">এখনো যথেষ্ট তথ্য নেই।</p>'}
   </section>
   ${notesSoonHTML()}

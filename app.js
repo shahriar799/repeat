@@ -6,6 +6,9 @@ const LETTERS = ['ক', 'খ', 'গ', 'ঘ'];
 const NEG_MARK = 0.5;          // BCS প্রিলিতে প্রতি ভুলে ০.৫ কাটা
 const SEC_PER_Q = 36;          // ২০০ প্রশ্ন = ২ ঘণ্টা
 const WEAK = 0.6, STRONG = 0.8, MIN_TRY = 3;
+const MAKER = 'শাহরিয়ার';
+const WA_NUMBER = '8801314624969';     // ভুল রিপোর্ট ও যোগাযোগ
+const FB_URL = '';                     // ফেসবুক প্রোফাইল লিংক (খালি থাকলে বাটন দেখাবে না)
 
 let BANK = null, BY_ID = {}, SUBJ = {};
 const $view = () => document.getElementById('view');
@@ -94,6 +97,26 @@ function expHTML(q) {
 }
 function qImgHTML(q) { return (q.qi || []).map((src) => `<div class="qimg"><img src="${src}" alt="প্রশ্নের চিত্র"></div>`).join(''); }
 const ansText = (q) => (q.a == null ? (q.note || 'কোনো অপশন সঠিক নয়') : `(${LETTERS[q.a]}) ${q.o[q.a]}`);
+function reportLink(q) {
+  const text = `রিপিট — ভুল রিপোর্ট\n${bcsLabel(q.b)}, প্রশ্ন ${bn(q.n)}\n"${(q.q || 'চিত্রভিত্তিক প্রশ্ন').slice(0, 140)}"\nসমস্যা: `;
+  return `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
+}
+const reportBtn = (q) => `<a class="rep" href="${reportLink(q)}" target="_blank" rel="noopener" title="এই প্রশ্নে ভুল থাকলে WhatsApp-এ জানান">⚑ ভুল জানান</a>`;
+function makerHTML() {
+  return `<footer class="card maker">
+    <div class="small muted">নির্মাতা</div>
+    <h2 style="margin:2px 0 4px">${esc(MAKER)}</h2>
+    <p class="small muted">চাকরিপ্রার্থীদের প্রস্তুতি সহজ করার একটা ফ্রি উদ্যোগ। মতামত বা কোনো ভুল চোখে পড়লে জানাবেন।</p>
+    <div class="row">
+      <a class="btn" href="https://wa.me/${WA_NUMBER}" target="_blank" rel="noopener">💬 WhatsApp</a>
+      ${FB_URL ? `<a class="btn" href="${FB_URL}" target="_blank" rel="noopener">ⓕ Facebook</a>` : ''}
+    </div>
+  </footer>`;
+}
+const notesSoonHTML = () => `<section class="card soon">
+    <div class="spread"><h2 style="margin:0">📗 স্টাডি নোট</h2><span class="badge">শীঘ্রই আসছে</span></div>
+    <p class="small muted" style="margin:6px 0 0">প্রতিটা টপিকের নিয়ম আর মূল কথা সংক্ষেপে, যা পড়লে ১৭০০ প্রশ্নের সবকিছু জানা হয়ে যাবে। প্র্যাকটিসে যে টপিকে ভুল করবেন, শুধু সেগুলোর নোটও আলাদা করে পাবেন।</p>
+  </section>`;
 const metaHTML = (q) => `<div class="meta"><span class="tag">${bcsLabel(q.b)}</span> প্রশ্ন ${bn(q.n)} · ${esc(SUBJ[q.s])} › ${esc(q.t)}</div>`;
 
 function relatedHTML(q) {
@@ -138,8 +161,9 @@ function viewHome() {
   const zone = (arr, cls) => arr.slice(0, 4).map((m) => `<div class="zone"><span>${esc(m.t)} <small class="muted">· ${esc(SUBJ[m.s])}</small></span><span class="pct ${cls}">${bn(pct(m.c, m.n))}%</span></div>`).join('');
   $view().innerHTML = `
   <section class="card">
-    <h1>আসসালামু আলাইকুম 👋</h1>
-    <p class="muted">৪১–৫০তম BCS প্রিলিমিনারির <b>${bn(total)}টি প্রশ্ন</b> ব্যাখ্যাসহ। যেকোনো সরকারি চাকরির পরীক্ষায় এই টপিকগুলো থেকেই প্রশ্ন ঘুরে ফিরে আসে।</p>
+    <h1>আসসালামু আলাইকুম</h1>
+    <p style="margin-bottom:.35rem"><b>চাকরির প্রস্তুতি শুরু হয় বিগত বছরের প্রশ্ন দিয়ে।</b></p>
+    <p class="muted">১ম থেকে ২০তম, যে গ্রেডের চাকরিই হোক, প্রস্তুতির প্রথম ধাপ BCS-এর প্রশ্ন সমাধান। ৪১–৫০তম BCS প্রিলির <b>${bn(total)}টি প্রশ্ন</b> ব্যাখ্যাসহ এখানে সাজানো আছে, যাতে আপনার শুরুটা সহজ হয়।</p>
     <div class="grid2">
       <div class="stat"><b>${bn(seen)}/${bn(total)}</b><span>প্রশ্ন দেখা হয়েছে</span></div>
       <div class="stat"><b>${bn(pct(c, c + w))}%</b><span>সঠিক উত্তরের হার</span></div>
@@ -153,12 +177,14 @@ function viewHome() {
   ${wrongNow ? `<section class="card spread"><span>আপনার <b>${bn(wrongNow)}টি</b> ভুল প্রশ্ন আবার পড়ার অপেক্ষায়</span><button class="btn" data-act="wrong">আবার দিন</button></section>` : ''}
   <section class="card">
     <h2>দুর্বল জায়গা</h2>
-    ${weak.length ? zone(weak, 'bad') + `<a class="btn block" style="margin-top:12px" href="#/guide">📘 আমার স্টাডি গাইড দেখুন</a>` : `<p class="muted small">একটা টপিকে অন্তত ${bn(MIN_TRY)}টি প্রশ্নের উত্তর দিলে এখানে দেখাবে কোথায় আপনি দুর্বল।</p>`}
+    ${weak.length ? zone(weak, 'bad') + `<a class="btn block" style="margin-top:12px" href="#/guide">📘 দুর্বল টপিকের বিগত প্রশ্ন সংকলন</a>` : `<p class="muted small">একটা টপিকে অন্তত ${bn(MIN_TRY)}টি প্রশ্নের উত্তর দিলে এখানে দেখাবে কোথায় আপনি দুর্বল।</p>`}
   </section>
   <section class="card">
     <h2>শক্ত জায়গা</h2>
     ${strong.length ? zone(strong, 'ok') : '<p class="muted small">এখনো যথেষ্ট তথ্য নেই।</p>'}
   </section>
+  ${notesSoonHTML()}
+  ${makerHTML()}
   <p class="small muted" style="text-align:center"><a href="#/about">রিপিট সম্পর্কে</a></p>`;
   const b = $view().querySelector('[data-act="wrong"]');
   if (b) b.onclick = () => startWrongPractice();
@@ -200,10 +226,19 @@ function viewPracticeSetup() {
     <button data-by="topic" class="${setup.by === 'topic' ? 'on' : ''}">টপিকভিত্তিক</button>
     <button data-by="exam" class="${setup.by === 'exam' ? 'on' : ''}">BCS ভিত্তিক</button>
   </div>
+  ${setup.by === 'exam' ? `<section class="card"><h2>কোন BCS?</h2><div class="list">${examPicks}</div></section>`
+    : setup.by === 'topic' ? `
   <section class="card">
-    ${setup.by === 'exam' ? `<h2>কোন BCS?</h2><div class="list">${examPicks}</div>` : `<h2>বিষয়</h2><div class="list">${subjPicks}</div>`}
+    <h3 class="muted" style="font-weight:500">১. বিষয় বেছে নিন</h3>
+    <div class="chips scroll" id="subjrow">${SUBJ_ORDER.map((s) => `<button class="chip ${setup.s === s ? 'on' : ''}" data-s="${s}">${esc(SUBJ[s])}</button>`).join('')}</div>
+    <p class="small muted" style="margin:4px 0 0">← পাশে সরালে আরও বিষয়</p>
   </section>
-  ${setup.by === 'topic' ? `<section class="card"><h2>টপিক — ${esc(SUBJ[setup.s])}</h2><div class="list">${topicPicks}</div></section>` : ''}
+  <section class="card">
+    <h3 class="muted" style="font-weight:500">২. টপিক বেছে নিন</h3>
+    <h2>${esc(SUBJ[setup.s])} <small class="muted" style="font-size:.85rem;font-weight:400">· ${bn(topics.length)}টি টপিক</small></h2>
+    <div class="list">${topicPicks}</div>
+  </section>`
+    : `<section class="card"><h2>বিষয়</h2><div class="list">${subjPicks}</div></section>`}
   <section class="card">
     <h2>কয়টি প্রশ্ন?</h2>
     <div class="chips">${[10, 30, 50].map((n) => `<button class="chip ${setup.n === n ? 'on' : ''}" data-n="${n}">${bn(n)}টি</button>`).join('')}</div>
@@ -212,6 +247,8 @@ function viewPracticeSetup() {
   <div class="sticky-actions"><button class="btn primary" data-act="start">শুরু করুন →</button></div>`;
 
   const v = $view();
+  const onChip = v.querySelector('#subjrow .chip.on');  // বাছাই করা বিষয় চোখের সামনে রাখো
+  if (onChip) onChip.parentElement.scrollLeft = onChip.offsetLeft - onChip.parentElement.offsetLeft - 8;
   v.querySelectorAll('[data-by]').forEach((b) => (b.onclick = () => { setup.by = b.dataset.by; viewPracticeSetup(); }));
   v.querySelectorAll('[data-s]').forEach((b) => (b.onclick = () => { setup.s = b.dataset.s; setup.t = null; viewPracticeSetup(); }));
   v.querySelectorAll('[data-t]').forEach((b) => (b.onclick = () => { setup.t = b.dataset.t; viewPracticeSetup(); }));
@@ -257,7 +294,7 @@ function viewQuiz() {
   const last = Session.i === total - 1;
   $view().innerHTML = `
   <div class="qhead"><span class="small muted">${esc(Session.label)} · ${bn(Session.i + 1)}/${bn(total)}</span>
-    <button class="star ${fav ? 'on' : ''}" data-act="fav" aria-label="ফেভারিট" title="ফেভারিট করে রাখুন">${fav ? '★' : '☆'}</button></div>
+    <span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-act="fav" aria-label="ফেভারিট" title="ফেভারিট করে রাখুন">${fav ? '★' : '☆'}</button></span></div>
   <div class="progress"><i style="width:${pct(Session.i + (answered ? 1 : 0), total)}%"></i></div>
   ${Session.i === 0 && Session.recycled ? `<p class="note small">এই অংশের নতুন প্রশ্ন শেষ হয়ে আসছে, তাই ${bn(Session.recycled)}টি প্রশ্ন আপনার আগের ভুলগুলো থেকে দেওয়া হলো।</p>` : ''}
   <article class="card">
@@ -407,8 +444,9 @@ function viewResult() {
   </section>
   <section class="row" style="margin-bottom:14px">
     ${wrongIds.length ? `<button class="btn primary" style="flex:1" data-act="redo">ভুলগুলো আবার দিন</button>` : ''}
-    <a class="btn" style="flex:1" href="#/guide">📘 স্টাডি গাইড</a>
+    <a class="btn" style="flex:1" href="#/guide">📘 বিগত প্রশ্ন সংকলন</a>
   </section>
+  ${wrongIds.length ? `<p class="note small" style="margin-bottom:14px">📗 যে টপিকগুলোতে ভুল হয়েছে, সেগুলোর <b>স্টাডি নোট</b> (নিয়ম ও মূল কথা) শীঘ্রই এখানে পাবেন।</p>` : ''}
   <section class="card"><h2>বিষয়ভিত্তিক ফলাফল</h2>
     <table><thead><tr><th>বিষয়</th><th class="num">সঠিক</th><th class="num">ভুল</th><th class="num">বাদ</th></tr></thead><tbody>${rows}</tbody></table>
   </section>
@@ -426,7 +464,7 @@ function reviewItem(q, chosen) {
   const fav = Store.isFav(q.id);
   return `<details class="rel" style="margin:0 0 8px">
     <summary>${metaLine(q)} ${esc(q.q || 'চিত্রভিত্তিক প্রশ্ন')}</summary>
-    <div class="spread"><div class="small">${state}</div><button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${fav ? '★' : '☆'}</button></div>
+    <div class="spread"><div class="small">${state}</div><span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${fav ? '★' : '☆'}</button></span></div>
     ${qImgHTML(q)}
     <p class="ans" style="color:var(--ok);font-weight:600">সঠিক উত্তর: ${esc(ansText(q))}</p>
     <div class="exp">${expHTML(q)}</div>
@@ -452,9 +490,9 @@ function viewNotebook() {
   <div class="seg">
     <button data-tab="wrong" class="${nbTab === 'wrong' ? 'on' : ''}">ভুল (${bn(wrong.length)})</button>
     <button data-tab="fav" class="${nbTab === 'fav' ? 'on' : ''}">ফেভারিট (${bn(fav.length)})</button>
-    <button data-tab="hist" class="${nbTab === 'hist' ? 'on' : ''}">ইতিহাস</button>
+    <button data-tab="hist" class="${nbTab === 'hist' ? 'on' : ''}">ইতিহাস (${bn(hist.length)})</button>
   </div>
-  <a class="btn block" href="#/guide" style="margin-bottom:14px">📘 আমার স্টাডি গাইড (PDF)</a>
+  <a class="btn block" href="#/guide" style="margin-bottom:14px">📘 বিগত প্রশ্ন সংকলন (PDF)</a>
   ${nbTab === 'hist' ? `<section class="card">${hist.length ? `<table><thead><tr><th>পরীক্ষা</th><th class="num">ফল</th></tr></thead><tbody>${hist.map((h) => `<tr><td>${esc(h.label)}<div class="small muted">${new Date(h.date).toLocaleDateString('bn-BD')} · ${h.mode === 'mock' ? 'মক টেস্ট' : 'প্র্যাকটিস'}</div></td><td class="num">${bn(h.c)}/${bn(h.n)}${h.mode === 'mock' ? `<div class="small muted">নম্বর ${bn(h.score)}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">এখনো কোনো পরীক্ষা দেননি।</p>'}</section>`
     : `<section class="card">
       ${list.length ? `<button class="btn primary block" data-act="practice" style="margin-bottom:12px">এগুলো প্র্যাকটিস করুন</button>${list.map((q) => reviewItem(q, undefined)).join('')}`
@@ -467,7 +505,7 @@ function viewNotebook() {
   bindFavButtons();
 }
 
-/* ---------- স্টাডি গাইড ---------- */
+/* ---------- বিগত প্রশ্ন সংকলন (টপিক ধরে আগের বছরের সব প্রশ্ন) ---------- */
 let guideSubj = '';
 function viewGuide() {
   const att = Store.data.attempts;
@@ -480,7 +518,7 @@ function viewGuide() {
   const topics = guideSubj
     ? [...new Set(BANK.questions.filter((q) => q.s === guideSubj).map((q) => q.t))].map((t) => ({ s: guideSubj, t }))
     : personal;
-  const title = guideSubj ? `মাস্টার গাইড — ${SUBJ[guideSubj]}` : 'আমার ব্যক্তিগত স্টাডি গাইড';
+  const title = guideSubj ? `বিগত প্রশ্ন সংকলন — ${SUBJ[guideSubj]}` : 'বিগত প্রশ্ন সংকলন — আমার দুর্বল টপিক';
   const body = topics.map(({ s, t }) => {
     const qs = BANK.questions.filter((q) => q.s === s && q.t === t).sort((a, b) => a.u.localeCompare(b.u, 'bn') || a.b - b.b);
     let mine = 0, ok = 0; qs.forEach((q) => { const a = att[q.id]; if (a) { mine += a.c + a.w; ok += a.c; } });
@@ -497,8 +535,8 @@ function viewGuide() {
   }).join('');
   $view().innerHTML = `
   <div class="no-print">
-    <h1>স্টাডি গাইড</h1>
-    <p class="muted small">আপনার দুর্বল টপিকগুলোর গত ১০ বছরের <b>সব</b> প্রশ্ন, উত্তর আর ব্যাখ্যা এক জায়গায়। এটা পড়লে ওই টপিকের সব BCS প্রশ্ন কভার হয়ে যাবে।</p>
+    <h1>বিগত প্রশ্ন সংকলন</h1>
+    <p class="muted small">যে টপিকে ভুল করেছেন, সেই টপিক থেকে গত ১০টি BCS-এ আসা <b>সব</b> প্রশ্ন, উত্তর আর ব্যাখ্যা এক জায়গায়। চাইলে একটা পুরো বিষয়ের সংকলনও দেখতে পারেন।</p>
     <div class="chips" style="margin-bottom:12px">
       <button class="chip ${!guideSubj ? 'on' : ''}" data-g="">আমার দুর্বল টপিক</button>
       ${SUBJ_ORDER.map((s) => `<button class="chip ${guideSubj === s ? 'on' : ''}" data-g="${s}">${esc(SUBJ[s])}</button>`).join('')}
@@ -506,7 +544,7 @@ function viewGuide() {
     ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:14px">⬇ PDF হিসেবে সেভ / প্রিন্ট করুন</button>` : ''}
   </div>
   <div class="only-print"><h1>রিপিট — ${esc(title)}</h1><p>${new Date().toLocaleDateString('bn-BD')}</p></div>
-  ${topics.length ? body : `<p class="card empty">এখনো কোনো দুর্বল টপিক পাওয়া যায়নি। কিছু প্র্যাকটিস করুন, অথবা উপর থেকে একটা বিষয় বেছে পুরো মাস্টার গাইড দেখুন।</p>`}`;
+  ${topics.length ? body : `<p class="card empty">এখনো কোনো দুর্বল টপিক পাওয়া যায়নি। কিছু প্র্যাকটিস করুন, অথবা উপর থেকে একটা বিষয় বেছে সেই বিষয়ের পুরো সংকলন দেখুন।</p>`}`;
   const v = $view();
   v.querySelectorAll('[data-g]').forEach((b) => (b.onclick = () => { guideSubj = b.dataset.g; viewGuide(); }));
   const p = v.querySelector('[data-act="print"]');
@@ -518,11 +556,11 @@ function viewAbout() {
   $view().innerHTML = `<section class="card">
     <h1>রিপিট সম্পর্কে</h1>
     <p>রিপিট একটি সম্পূর্ণ ফ্রি প্ল্যাটফর্ম। এখানে ৪১তম থেকে ৫০তম BCS প্রিলিমিনারির ${bn(BANK.questions.length)}টি প্রশ্ন উত্তর ও ব্যাখ্যাসহ আছে, প্রতিটি প্রশ্ন বিষয় ও টপিক অনুযায়ী সাজানো।</p>
-    <p>যেকোনো গ্রেডের সরকারি চাকরির পরীক্ষায় BCS-এর এই টপিকগুলো থেকেই প্রশ্ন ঘুরে ফিরে আসে — তাই নাম “রিপিট”।</p>
+    <p>১ম থেকে ২০তম, যে গ্রেডের চাকরিই হোক, প্রস্তুতি শুরু হয় বিগত বছরের প্রশ্ন দিয়ে, আর BCS-এর এই টপিকগুলো থেকেই প্রশ্ন ঘুরে ফিরে আসে। তাই নাম “রিপিট”।</p>
     <p class="note">আপনার প্রোগ্রেস এখন এই ডিভাইসের ব্রাউজারে জমা থাকে। শিগগিরই Google দিয়ে লগইন যোগ হবে, তখন মোবাইল আর পিসি দুই জায়গাতেই একই প্রোগ্রেস দেখা যাবে।</p>
-    <p class="small muted">কোনো উত্তর বা ব্যাখ্যায় ভুল পেলে আমাদের জানান।</p>
+    <p class="small muted">কোনো উত্তর বা ব্যাখ্যায় ভুল পেলে প্রশ্নের পাশের “⚑ ভুল জানান” চাপুন, অথবা নিচের WhatsApp-এ জানান।</p>
     <button class="btn" data-act="reset">আমার সব প্রোগ্রেস মুছে ফেলুন</button>
-  </section>`;
+  </section>${makerHTML()}`;
   $view().querySelector('[data-act="reset"]').onclick = () => {
     if (confirm('সব উত্তর, ভুল, ফেভারিট আর ইতিহাস মুছে যাবে। নিশ্চিত?')) { Store.data = { attempts: {}, fav: [], history: [] }; Store.save(); go(''); }
   };

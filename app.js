@@ -7,7 +7,7 @@ const NEG_MARK = 0.5;          // BCS প্রিলিতে প্রতি �
 const SEC_PER_Q = 36;          // ২০০ প্রশ্ন = ২ ঘণ্টা
 const WEAK = 0.6, STRONG = 0.8, MIN_TRY = 3;
 const MAKER = 'শাহরিয়ার';
-const WA_NUMBER = '8801314624969';     // ভুল রিপোর্ট ও যোগাযোগ
+const WA_NUMBER = '8801717247651';     // ভুল রিপোর্ট ও যোগাযোগ
 const FB_URL = 'https://www.facebook.com/siyama.sahariyara.289749/'; // নির্মাতার ফেসবুক
 
 let BANK = null, BY_ID = {}, SUBJ = {};
@@ -118,7 +118,7 @@ let NOTES = {};
 const hasNote = (s, t) => !!(NOTES[s] && NOTES[s][t]);
 const readySubjects = () => SUBJ_ORDER.filter((s) => NOTES[s] && Object.keys(NOTES[s]).length);
 const GUIDE_PDF = 'guide/Repeat-Study-Guide.pdf';
-const GUIDE_BTN = `<a class="btn block" style="margin-top:8px" href="${GUIDE_PDF}" download="Repeat-Study-Guide.pdf">⬇ পূর্ণ স্টাডি গাইড PDF (১২ বিষয়, MCQ ছাড়া)</a>`;
+const GUIDE_BTN = `<a class="btn block" style="margin-top:8px" href="${GUIDE_PDF}" download="Repeat-Study-Guide.pdf">পূর্ণ স্টাডি গাইড PDF</a>`;
 function notesSoonHTML() {
   const ready = readySubjects();
   const left = SUBJ_ORDER.length - ready.length;

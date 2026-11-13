@@ -1,7 +1,7 @@
 /* রিপিট — অফলাইন ক্যাশ। নতুন ভার্সন দিলে VERSION বাড়াতে হবে।
    অ্যাপের কোড ও প্রশ্ন (html/js/css/json): আগে নেটওয়ার্ক, না পেলে ক্যাশ — তাই আপডেট সাথে সাথে পৌঁছায়।
    ছবি ও আইকন: আগে ক্যাশ — দ্রুত, আর এগুলো বদলায় না। */
-const VERSION = 'repeat-v6';
+const VERSION = 'repeat-v7';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'data/bank.json', 'data/notes.json', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

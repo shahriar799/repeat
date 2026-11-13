@@ -113,10 +113,20 @@ function makerHTML() {
     </div>
   </footer>`;
 }
-const notesSoonHTML = () => `<section class="card soon">
-    <div class="spread"><h2 style="margin:0">📗 স্টাডি নোট</h2><span class="badge">শীঘ্রই আসছে</span></div>
-    <p class="small muted" style="margin:6px 0 0">প্রতিটা টপিকের নিয়ম আর মূল কথা সংক্ষেপে, যা পড়লে ১৭০০ প্রশ্নের সবকিছু জানা হয়ে যাবে। প্র্যাকটিসে যে টপিকে ভুল করবেন, শুধু সেগুলোর নোটও আলাদা করে পাবেন।</p>
+/* ---------- স্টাডি নোট (data/notes.json: {বিষয়কোড: {টপিক: html}}) ---------- */
+let NOTES = {};
+const hasNote = (s, t) => !!(NOTES[s] && NOTES[s][t]);
+const readySubjects = () => SUBJ_ORDER.filter((s) => NOTES[s] && Object.keys(NOTES[s]).length);
+function notesSoonHTML() {
+  const ready = readySubjects();
+  const left = SUBJ_ORDER.length - ready.length;
+  return `<section class="card soon">
+    <div class="spread"><h2 style="margin:0">📗 স্টাডি নোট</h2>${left ? `<span class="badge">${ready.length ? 'আরও আসছে' : 'শীঘ্রই আসছে'}</span>` : ''}</div>
+    <p class="small muted" style="margin:6px 0 10px">প্রতিটা টপিকের নিয়ম আর মূল কথা সংক্ষেপে, যা পড়লে ১৭০০ প্রশ্নের সবকিছু জানা হয়ে যাবে। প্র্যাকটিসে যে টপিকে ভুল করবেন, শুধু সেগুলোর নোটও আলাদা করে পাবেন।</p>
+    ${ready.length ? `<p class="small" style="margin-bottom:10px">✔ তৈরি: ${ready.map((s) => esc(SUBJ[s])).join(', ')}${left ? ` · বাকি ${bn(left)}টি বিষয় শীঘ্রই` : ''}</p>
+    <a class="btn primary block" href="#/notes">📗 স্টাডি নোট পড়ুন</a>` : ''}
   </section>`;
+}
 const metaHTML = (q) => `<div class="meta"><span class="tag">${bcsLabel(q.b)}</span> প্রশ্ন ${bn(q.n)} · ${esc(SUBJ[q.s])} › ${esc(q.t)}</div>`;
 
 function relatedHTML(q) {
@@ -124,17 +134,18 @@ function relatedHTML(q) {
   const tc = topicCount(q), sc = subtopicCount(q);
   const head = `<h3>📌 এই টপিক BCS-এ কতবার এসেছে?</h3>
     <p class="small">“${esc(q.u)}” থেকে গত ১০টি BCS-এ <b>${bn(sc)}টি</b> প্রশ্ন, আর পুরো “${esc(q.t)}” টপিক থেকে <b>${bn(tc)}টি</b> প্রশ্ন এসেছে।</p>`;
-  if (!r.length) return `<div class="rel">${head}</div>`;
+  const noteLink = hasNote(q.s, q.t) ? `<a class="btn block" style="margin:6px 0 4px" href="#/notes/${q.s}/${encodeURIComponent(q.t)}" target="_blank" rel="noopener">📗 “${esc(q.t)}” টপিকের স্টাডি নোট পড়ুন</a>` : '';
+  if (!r.length) return `<div class="rel">${head}${noteLink}</div>`;
   const items = r.map((x) => `<details><summary>${metaLine(x)} ${esc(x.q || 'চিত্রভিত্তিক প্রশ্ন')}</summary>
       ${qImgHTML(x)}<p class="ans">উত্তর: ${esc(ansText(x))}</p><div class="exp">${expHTML(x)}</div></details>`).join('');
-  return `<div class="rel">${head}<p class="small muted">সম্পর্কিত প্রশ্নগুলো (খুলে দেখুন):</p>${items}</div>`;
+  return `<div class="rel">${head}${noteLink}<p class="small muted">সম্পর্কিত প্রশ্নগুলো (খুলে দেখুন):</p>${items}</div>`;
 }
 const metaLine = (x) => `<span class="tag">${bcsLabel(x.b)}</span>`;
 
 /* ---------- রাউটার ---------- */
 const routes = {
   '': viewHome, practice: viewPracticeSetup, mock: viewMockSetup, quiz: viewQuiz, mocktest: viewMockTest,
-  result: viewResult, notebook: viewNotebook, guide: viewGuide, about: viewAbout,
+  result: viewResult, notebook: viewNotebook, guide: viewGuide, notes: viewNotes, about: viewAbout,
 };
 function go(path) { location.hash = '#/' + path; }
 function render() {
@@ -144,7 +155,7 @@ function render() {
   document.querySelectorAll('.tabs a').forEach((a) => {
     const tab = a.dataset.tab;
     const on = (tab === 'home' && !name) || tab === name || (tab === 'practice' && name === 'quiz') ||
-      (tab === 'mock' && name === 'mocktest') || (tab === 'notebook' && name === 'guide');
+      (tab === 'mock' && name === 'mocktest') || (tab === 'notebook' && (name === 'guide' || name === 'notes'));
     a.classList.toggle('on', on);
   });
   fn(rest);
@@ -446,7 +457,13 @@ function viewResult() {
     ${wrongIds.length ? `<button class="btn primary" style="flex:1" data-act="redo">ভুলগুলো আবার দিন</button>` : ''}
     <a class="btn" style="flex:1" href="#/guide">📘 বিগত প্রশ্ন সংকলন</a>
   </section>
-  ${wrongIds.length ? `<p class="note small" style="margin-bottom:14px">📗 যে টপিকগুলোতে ভুল হয়েছে, সেগুলোর <b>স্টাডি নোট</b> (নিয়ম ও মূল কথা) শীঘ্রই এখানে পাবেন।</p>` : ''}
+  ${(() => {
+    if (!wrongIds.length) return '';
+    const withNote = [...new Set(wrongIds.map((id) => BY_ID[id]).filter((q) => hasNote(q.s, q.t)).map((q) => q.s + '|' + q.t))];
+    return withNote.length
+      ? `<section class="card"><h2>📗 ভুল হওয়া টপিকের স্টাডি নোট</h2><p class="small muted">এই সেশনে যে ${bn(withNote.length)}টি টপিকে ভুল হয়েছে, সেগুলোর নিয়ম আর মূল কথা।</p><a class="btn primary block" href="#/notes/mine">নোট পড়ুন / PDF করুন</a></section>`
+      : `<p class="note small" style="margin-bottom:14px">📗 যে টপিকগুলোতে ভুল হয়েছে, সেগুলোর <b>স্টাডি নোট</b> শীঘ্রই এখানে পাবেন।</p>`;
+  })()}
   <section class="card"><h2>বিষয়ভিত্তিক ফলাফল</h2>
     <table><thead><tr><th>বিষয়</th><th class="num">সঠিক</th><th class="num">ভুল</th><th class="num">বাদ</th></tr></thead><tbody>${rows}</tbody></table>
   </section>
@@ -551,6 +568,78 @@ function viewGuide() {
   if (p) p.onclick = () => { alert('প্রিন্ট উইন্ডোতে “Save as PDF” বেছে নিন।'); window.print(); };
 }
 
+/* ---------- স্টাডি নোট পেজ: #/notes (মাস্টার), #/notes/BL, #/notes/BL/টপিক, #/notes/mine (ব্যক্তিগত) ---------- */
+let notesSubj = null;
+function myWeakNoteTopics() {
+  const att = Store.data.attempts, seen = new Map();
+  const { weak } = topicStats();
+  weak.forEach((m) => { if (hasNote(m.s, m.t)) seen.set(m.s + '|' + m.t, { s: m.s, t: m.t }); });
+  BANK.questions.forEach((q) => {
+    if (att[q.id] && att[q.id].ok === false && hasNote(q.s, q.t)) seen.set(q.s + '|' + q.t, { s: q.s, t: q.t });
+  });
+  return [...seen.values()].sort((a, b) => SUBJ_ORDER.indexOf(a.s) - SUBJ_ORDER.indexOf(b.s));
+}
+function noteTopicHTML(s, t, idx) {
+  const qs = BANK.questions.filter((q) => q.s === s && q.t === t);
+  const years = [...new Set(qs.map((q) => q.b))].sort((a, b) => a - b);
+  return `<section class="card guide-topic note-body" id="nt-${idx}">
+    <div class="small muted">${esc(SUBJ[s])}</div>
+    <h2>${esc(t)}</h2>
+    <p class="small muted">গত ১০টি BCS-এ এই টপিক থেকে <b>${bn(qs.length)}টি</b> প্রশ্ন এসেছে (${years.map((b) => bn(b)).join(', ')}তম)।</p>
+    ${NOTES[s][t]}
+    <div class="row no-print" style="margin-top:12px">
+      <button class="btn" style="flex:1" data-prac="${s}|${esc(t)}">✎ এই টপিক প্র্যাকটিস</button>
+      <a class="btn" style="flex:1" href="#/guide">📘 বিগত প্রশ্ন সংকলন</a>
+    </div>
+  </section>`;
+}
+function viewNotes(rest) {
+  const ready = readySubjects();
+  const mode = rest[0] === 'mine' ? 'mine' : 'master';
+  if (rest[0] && rest[0] !== 'mine' && NOTES[rest[0]]) notesSubj = rest[0];
+  if (!notesSubj || !ready.includes(notesSubj)) notesSubj = ready[0] || null;
+  const focus = rest[1] ? decodeURIComponent(rest[1]) : null;
+  let topics = [];
+  if (mode === 'mine') topics = myWeakNoteTopics();
+  else if (notesSubj) topics = Object.keys(NOTES[notesSubj]).map((t) => ({ s: notesSubj, t }));
+  const title = mode === 'mine' ? 'আমার দুর্বল টপিকের স্টাডি নোট' : `স্টাডি নোট — ${notesSubj ? SUBJ[notesSubj] : ''}`;
+  const index = topics.length > 1 ? `<section class="card no-print"><h3>সূচিপত্র</h3><ol class="toc">${topics.map((x, i) => `<li><a href="#" data-jump="${i}">${esc(x.t)}</a>${mode === 'mine' ? ` <small class="muted">· ${esc(SUBJ[x.s])}</small>` : ''}</li>`).join('')}</ol></section>` : '';
+  $view().innerHTML = `
+  <div class="no-print">
+    <h1>স্টাডি নোট</h1>
+    <p class="muted small">প্রতিটা টপিকের নিয়ম, চেনার উপায় আর গুরুত্বপূর্ণ উদাহরণ সংক্ষেপে। গত ১০ বছরের BCS-এ যা যা এসেছে, তার সবকিছু এখানে আছে।</p>
+    <div class="seg">
+      <button data-nm="master" class="${mode === 'master' ? 'on' : ''}">পুরো নোট</button>
+      <button data-nm="mine" class="${mode === 'mine' ? 'on' : ''}">আমার দুর্বল টপিক</button>
+    </div>
+    ${mode === 'master' ? `<div class="chips scroll" id="subjrow" style="margin-bottom:12px">${SUBJ_ORDER.map((s) => ready.includes(s)
+      ? `<button class="chip ${notesSubj === s ? 'on' : ''}" data-ns="${s}">${esc(SUBJ[s])}</button>`
+      : `<button class="chip" disabled title="শীঘ্রই আসছে">${esc(SUBJ[s])} · শীঘ্রই</button>`).join('')}</div>` : ''}
+    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:14px">⬇ PDF হিসেবে সেভ / প্রিন্ট করুন</button>` : ''}
+  </div>
+  <div class="only-print"><h1>রিপিট — ${esc(title)}</h1><p>${new Date().toLocaleDateString('bn-BD')} · shahriar799.github.io/repeat</p></div>
+  ${topics.length ? index + topics.map((x, i) => noteTopicHTML(x.s, x.t, i)).join('')
+    : `<p class="card empty">${mode === 'mine' ? 'এখনো কোনো দুর্বল টপিক পাওয়া যায়নি, অথবা আপনার ভুল টপিকগুলোর নোট এখনো তৈরি হয়নি। কিছু প্র্যাকটিস করুন, অথবা “পুরো নোট” দেখুন।' : 'স্টাডি নোট শীঘ্রই আসছে।'}</p>`}`;
+  const v = $view();
+  v.querySelectorAll('[data-nm]').forEach((b) => (b.onclick = () => go(b.dataset.nm === 'mine' ? 'notes/mine' : 'notes')));
+  v.querySelectorAll('[data-ns]').forEach((b) => (b.onclick = () => go('notes/' + b.dataset.ns)));
+  v.querySelectorAll('[data-jump]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); document.getElementById('nt-' + a.dataset.jump).scrollIntoView({ behavior: 'smooth' }); }));
+  v.querySelectorAll('[data-prac]').forEach((b) => (b.onclick = () => {
+    const [s, t] = b.dataset.prac.split('|');
+    Object.assign(setup, { by: 'topic', s, t });
+    const { qs, recycled } = pickQuestions(poolFor(setup), setup.n);
+    startPractice(qs, t, recycled);
+  }));
+  const p = v.querySelector('[data-act="print"]');
+  if (p) p.onclick = () => { alert('প্রিন্ট উইন্ডোতে “Save as PDF” বেছে নিন।'); window.print(); };
+  const onChip = v.querySelector('#subjrow .chip.on');
+  if (onChip) onChip.parentElement.scrollLeft = onChip.offsetLeft - onChip.parentElement.offsetLeft - 8;
+  if (focus) {
+    const i = topics.findIndex((x) => x.t === focus);
+    if (i >= 0) setTimeout(() => document.getElementById('nt-' + i).scrollIntoView(), 50);
+  }
+}
+
 /* ---------- সম্পর্কে ---------- */
 function viewAbout() {
   $view().innerHTML = `<section class="card">
@@ -578,6 +667,7 @@ async function boot() {
   }
   SUBJ = BANK.subjects;
   BANK.questions.forEach((q) => (BY_ID[q.id] = q));
+  try { NOTES = await (await fetch('data/notes.json')).json(); } catch (e) { NOTES = {}; }
   window.addEventListener('hashchange', render);
   window.addEventListener('beforeunload', (e) => { if (Session.mode) { e.preventDefault(); e.returnValue = ''; } });
   render();

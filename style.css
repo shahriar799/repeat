@@ -184,6 +184,23 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .empty { text-align: center; padding: 28px 12px; color: var(--muted); }
 .note { background: var(--warn-soft); color: var(--ink); border-radius: 12px; padding: 12px 14px; font-size: .92rem; }
 
+/* study notes */
+.note-body { scroll-margin-top: 72px; }
+@media (min-width: 720px) { .note-body { scroll-margin-top: 120px; } }
+.note-body h3 { margin-top: 18px; color: var(--accent); }
+.note-body ul { padding-left: 1.2rem; margin: 0 0 .75rem; }
+.note-body li { margin-bottom: 4px; }
+.note-body .tw { overflow-x: auto; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 10px; }
+.note-body table { font-size: .93rem; }
+.note-body th { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+.note-body td, .note-body th { padding: 8px 10px; }
+.tip { background: var(--accent-soft); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; padding: 10px 12px; margin: 10px 0; font-size: .95rem; }
+.warnbox { background: var(--warn-soft); border-left: 4px solid var(--warn); border-radius: 0 10px 10px 0; padding: 10px 12px; margin: 10px 0; font-size: .92rem; }
+.toc { margin: 0; padding-left: 1.4rem; columns: 2; column-gap: 24px; }
+.toc li { break-inside: avoid; margin-bottom: 4px; }
+@media (max-width: 520px) { .toc { columns: 1; } }
+.chip:disabled { opacity: .5; cursor: not-allowed; }
+
 /* study guide */
 .guide-topic { break-inside: avoid-page; margin-bottom: 20px; }
 .guide-q { border-bottom: 1px dashed var(--line); padding: 10px 0; break-inside: avoid; }

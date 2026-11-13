@@ -117,14 +117,18 @@ function makerHTML() {
 let NOTES = {};
 const hasNote = (s, t) => !!(NOTES[s] && NOTES[s][t]);
 const readySubjects = () => SUBJ_ORDER.filter((s) => NOTES[s] && Object.keys(NOTES[s]).length);
+const GUIDE_PDF = 'guide/Repeat-Study-Guide.pdf';
+const GUIDE_BTN = `<a class="btn block" style="margin-top:8px" href="${GUIDE_PDF}" download="Repeat-Study-Guide.pdf">⬇ পূর্ণ স্টাডি গাইড PDF (১২ বিষয়, MCQ ছাড়া)</a>`;
 function notesSoonHTML() {
   const ready = readySubjects();
   const left = SUBJ_ORDER.length - ready.length;
   return `<section class="card soon">
     <div class="spread"><h2 style="margin:0">📗 স্টাডি নোট</h2>${left ? `<span class="badge">${ready.length ? 'আরও আসছে' : 'শীঘ্রই আসছে'}</span>` : ''}</div>
     <p class="small muted" style="margin:6px 0 10px">প্রতিটা টপিকের নিয়ম আর মূল কথা সংক্ষেপে, যা পড়লে ১৭০০ প্রশ্নের সবকিছু জানা হয়ে যাবে। প্র্যাকটিসে যে টপিকে ভুল করবেন, শুধু সেগুলোর নোটও আলাদা করে পাবেন।</p>
-    ${ready.length ? `<p class="small" style="margin-bottom:10px">✔ তৈরি: ${ready.map((s) => esc(SUBJ[s])).join(', ')}${left ? ` · বাকি ${bn(left)}টি বিষয় শীঘ্রই` : ''}</p>
-    <a class="btn primary block" href="#/notes">📗 স্টাডি নোট পড়ুন</a>` : ''}
+    ${ready.length && left ? `<p class="small" style="margin-bottom:10px">✔ তৈরি: ${ready.map((s) => esc(SUBJ[s])).join(', ')} · বাকি ${bn(left)}টি বিষয় শীঘ্রই</p>` : ''}
+    ${!left ? `<p class="small" style="margin-bottom:10px">✔ ১২টি বিষয়ের নোটই তৈরি।</p>` : ''}
+    ${ready.length ? `<a class="btn primary block" href="#/notes">📗 স্টাডি নোট পড়ুন</a>` : ''}
+    ${!left ? GUIDE_BTN : ''}
   </section>`;
 }
 const metaHTML = (q) => `<div class="meta"><span class="tag">${bcsLabel(q.b)}</span> প্রশ্ন ${bn(q.n)} · ${esc(SUBJ[q.s])} › ${esc(q.t)}</div>`;
@@ -615,7 +619,8 @@ function viewNotes(rest) {
     ${mode === 'master' ? `<div class="chips scroll" id="subjrow" style="margin-bottom:12px">${SUBJ_ORDER.map((s) => ready.includes(s)
       ? `<button class="chip ${notesSubj === s ? 'on' : ''}" data-ns="${s}">${esc(SUBJ[s])}</button>`
       : `<button class="chip" disabled title="শীঘ্রই আসছে">${esc(SUBJ[s])} · শীঘ্রই</button>`).join('')}</div>` : ''}
-    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:14px">⬇ PDF হিসেবে সেভ / প্রিন্ট করুন</button>` : ''}
+    ${topics.length ? `<button class="btn primary block" data-act="print" style="margin-bottom:8px">⬇ ${mode === 'mine' ? 'এই নোট' : 'এই বিষয়ের নোট'} PDF হিসেবে সেভ / প্রিন্ট করুন</button>` : ''}
+    ${ready.length === SUBJ_ORDER.length ? GUIDE_BTN.replace('margin-top:8px', 'margin-bottom:14px') : ''}
   </div>
   <div class="only-print"><h1>রিপিট — ${esc(title)}</h1><p>${new Date().toLocaleDateString('bn-BD')} · shahriar799.github.io/repeat</p></div>
   ${topics.length ? index + topics.map((x, i) => noteTopicHTML(x.s, x.t, i)).join('')

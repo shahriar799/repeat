@@ -43,7 +43,7 @@ function randomId() {
 let vid = ls.get('repeat.vid');
 if (!vid) { vid = randomId(); ls.set('repeat.vid', vid); }
 async function countVisit() {
-  const today = new Date().toISOString().slice(0, 10);
+  const d = new Date(), today = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; // ফোনের স্থানীয় তারিখ
   if (ls.get('repeat.vday') === today) return;
   const data = { last: serverTimestamp(), days: increment(1) };
   const created = ls.get('repeat.vcreated') === '1';

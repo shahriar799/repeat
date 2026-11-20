@@ -22,12 +22,51 @@ const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) {
 const bcsLabel = (b) => `${bn(b)}তম BCS`;
 function fmtTime(sec) { const m = Math.floor(sec / 60), s = sec % 60; return `${bn(m)}:${bn(String(s).padStart(2, '0'))}`; }
 
-/* ---------- স্টোরেজ (পরে Firebase-এর সাথে sync হবে) ---------- */
+/* ---------- ৫ বক্স রিভিশন (Leitner): বক্স ১→৫, পরের রিভিশন কত দিন পর ---------- */
+const BOX_GAP = [1, 2, 4, 7, 15];
+const DAILY_MAX = 30;            // দিনে সর্বোচ্চ রিভিশন প্রশ্ন
+const today = () => { const d = new Date(); return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000); };
+const dayText = (n) => {
+  const t = today();
+  if (n <= t) return 'আজ';
+  if (n === t + 1) return 'কাল';
+  return new Date(n * 86400000).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+};
+const freshData = () => ({ attempts: {}, fav: [], history: [], box: {}, mastered: {}, round: 1, roundStart: 0 });
+function dueList() {
+  const box = Store.data.box, t = today();
+  return Object.keys(box).filter((id) => BY_ID[id] && box[id].due <= t)
+    .sort((a, b) => box[a].due - box[b].due || box[a].b - box[b].b).map((id) => BY_ID[id]);
+}
+function nextDue() {
+  const box = Store.data.box, ds = Object.values(box).map((e) => e.due);
+  return ds.length ? Math.min(...ds) : null;
+}
+/* এই রাউন্ডে দেখা হয়েছে কিনা ("নতুন রাউন্ড" চাপলে সব আবার নতুন) */
+const seenNow = (id) => { const a = Store.data.attempts[id]; return !!(a && a.last >= Store.data.roundStart); };
+function boxLine(id) {
+  const e = Store.data.box[id];
+  if (!e) return Store.data.mastered[id] ? '<span class="boxl ok">আয়ত্ত হয়েছে</span>' : '';
+  return `<span class="boxl">বক্স ${bn(e.b)}/${bn(BOX_GAP.length)} · ${e.due <= today() ? '<b>আজ রিভিশন</b>' : 'পরের রিভিশন ' + dayText(e.due)}</span>`;
+}
+
+/* ---------- স্টোরেজ ---------- */
 const KEY = 'repeat.v1';
 const Store = {
-  data: { attempts: {}, fav: [], history: [] },
+  data: freshData(),
   load() {
-    try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d) this.data = Object.assign(this.data, d); } catch (e) { /* প্রাইভেট মোড */ }
+    try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d) { this.data = Object.assign(freshData(), d); if (!d.box) this.data.box = null; } } catch (e) { /* প্রাইভেট মোড */ }
+    this.migrate();
+  },
+  /* পুরনো ডেটা: শেষবার ভুল প্রশ্নগুলো আজই বক্স ১-এ */
+  migrate() {
+    const d = this.data;
+    if (!d.box) {
+      d.box = {}; const t = today();
+      Object.keys(d.attempts).forEach((id) => { if (d.attempts[id].ok === false) d.box[id] = { b: 1, due: t, src: 'w' }; });
+      d.fav.forEach((id) => { if (!d.box[id]) d.box[id] = { b: 1, due: t, src: 'f' }; });
+    }
+    d.mastered = d.mastered || {}; d.round = d.round || 1; d.roundStart = d.roundStart || 0;
   },
   save(noSync) {
     try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* জায়গা নেই */ }
@@ -38,11 +77,30 @@ const Store = {
     a.n++; if (correct === true) a.c++; if (correct === false) a.w++;
     a.ok = correct; a.last = Date.now();
     this.data.attempts[id] = a;
+    this.leitner(id, correct);
+  },
+  /* ৫ বক্স: ভুল হলে বক্স ১ (কাল আবার); নির্ধারিত দিনে সঠিক হলে পরের বক্স; বক্স ৫ পার হলে আয়ত্ত */
+  leitner(id, correct) {
+    const box = this.data.box, t = today(), e = box[id];
+    if (correct === false) {
+      box[id] = { b: 1, due: t + BOX_GAP[0], src: e && e.src === 'f' && this.isFav(id) ? 'f' : 'w' };
+      delete this.data.mastered[id];
+      return;
+    }
+    if (correct !== true || !e || e.due > t) return;      // দিনের আগে সঠিক হলে প্রমোশন নয়
+    if (e.b >= BOX_GAP.length) { delete box[id]; this.data.mastered[id] = Date.now(); return; }
+    e.b++; e.due = t + BOX_GAP[e.b - 1];
   },
   isFav(id) { return this.data.fav.includes(id); },
   toggleFav(id) {
     const f = this.data.fav; const i = f.indexOf(id);
-    if (i >= 0) f.splice(i, 1); else f.unshift(id);
+    if (i >= 0) {
+      f.splice(i, 1);
+      if (this.data.box[id] && this.data.box[id].src === 'f') delete this.data.box[id];
+    } else {
+      f.unshift(id);
+      if (!this.data.box[id]) this.data.box[id] = { b: 1, due: today() + BOX_GAP[0], src: 'f' };
+    }
     this.save(); return i < 0;
   },
 };
@@ -50,9 +108,9 @@ const Store = {
 /* ---------- প্রশ্ন বাছাই: আগে না-দেখা, তারপর ভুলগুলো ---------- */
 function pickQuestions(pool, n) {
   const att = Store.data.attempts;
-  const unseen = shuffle(pool.filter((q) => !att[q.id]));
+  const unseen = shuffle(pool.filter((q) => !seenNow(q.id)));
   if (unseen.length >= n) return { qs: unseen.slice(0, n), recycled: 0 };
-  const seen = pool.filter((q) => att[q.id]).sort((x, y) => {
+  const seen = pool.filter((q) => seenNow(q.id)).sort((x, y) => {
     const a = att[x.id], b = att[y.id];
     if ((a.ok === false) !== (b.ok === false)) return a.ok === false ? -1 : 1; // শেষবার ভুল আগে
     if (b.w !== a.w) return b.w - a.w;                                        // বেশি ভুল আগে
@@ -196,10 +254,9 @@ function render() {
 /* ---------- হোম ---------- */
 function viewHome() {
   const att = Store.data.attempts, total = BANK.questions.length;
-  const ids = Object.keys(att), seen = ids.length;
+  const ids = Object.keys(att), seen = ids.filter(seenNow).length, round = Store.data.round;
   let c = 0, w = 0; ids.forEach((id) => { c += att[id].c; w += att[id].w; });
   const { weak, strong } = topicStats();
-  const wrongNow = ids.filter((id) => att[id].ok === false).length;
   const zone = (arr, cls) => arr.slice(0, 4).map((m) => `<div class="zone"><span>${esc(m.t)}<small class="muted">${esc(SUBJ[m.s])}</small></span><span class="pct ${cls}">${bn(pct(m.c, m.n))}%</span></div>`).join('');
   $view().innerHTML = `
   <section class="card hero">
@@ -207,7 +264,7 @@ function viewHome() {
     <h1>চাকরির প্রস্তুতি শুরু হোক বিগত বছরের প্রশ্ন দিয়ে।</h1>
     <p class="muted">১ম থেকে ২০তম, যে গ্রেডের চাকরিই হোক, প্রস্তুতির প্রথম ধাপ BCS-এর প্রশ্ন সমাধান। ৪১–৫০তম BCS প্রিলির <b>${bn(total)}টি প্রশ্ন</b> ব্যাখ্যাসহ এখানে সাজানো আছে, যাতে আপনার শুরুটা সহজ হয়।</p>
     <div class="grid2">
-      <div class="stat"><b>${bn(seen)}/${bn(total)}</b><span>প্রশ্ন দেখা হয়েছে</span></div>
+      <div class="stat"><b>${bn(seen)}/${bn(total)}</b><span>${round > 1 ? `রাউন্ড ${bn(round)}: ` : ''}প্রশ্ন দেখা হয়েছে</span></div>
       <div class="stat"><b>${bn(pct(c, c + w))}%</b><span>সঠিক উত্তরের হার</span></div>
     </div>
     <div class="bar">${bar(pct(seen, total))}</div>
@@ -216,7 +273,7 @@ function viewHome() {
     <a class="btn primary" style="flex:1" href="#/practice">${I('pen')}প্র্যাকটিস শুরু</a>
     <a class="btn" style="flex:1" href="#/mock">${I('clock')}মক টেস্ট</a>
   </section>
-  ${wrongNow ? `<section class="card spread"><span>আপনার <b>${bn(wrongNow)}টি</b> ভুল প্রশ্ন আবার পড়ার অপেক্ষায়</span><button class="btn" data-act="wrong">আবার দিন</button></section>` : ''}
+  ${reviewCardHTML()}
   <section class="card">
     <h2>উইক জোন (Weak Zone)</h2>
     ${weak.length ? zone(weak, 'bad') + `<a class="btn block" style="margin-top:12px" href="#/guide">${I('archive')}দুর্বল টপিকের বিগত প্রশ্ন সংকলন</a>` : `<p class="muted small">একটা টপিকে অন্তত ${bn(MIN_TRY)}টি প্রশ্নের উত্তর দিলে এখানে দেখাবে কোথায় আপনি দুর্বল।</p>`}
@@ -229,8 +286,25 @@ function viewHome() {
   ${installHTML()}
   ${makerHTML()}
   <p class="small muted" style="text-align:center"><a href="#/about">রিপিট সম্পর্কে</a></p>`;
-  const b = $view().querySelector('[data-act="wrong"]');
-  if (b) b.onclick = () => startWrongPractice();
+  bindReview();
+}
+/* হোম আর খাতার "আজকের রিভিশন" কার্ড */
+function reviewCardHTML() {
+  const inBox = Object.keys(Store.data.box).length;
+  if (!inBox) return '';
+  const due = dueList(), nd = nextDue();
+  return `<section class="card review">
+    <div class="spread"><h2 style="margin:0">আজকের রিভিশন</h2><span class="badge">৫ বক্স পদ্ধতি</span></div>
+    ${due.length
+      ? `<p style="margin:8px 0 12px"><b>${bn(Math.min(due.length, DAILY_MAX))}টি</b> ভুল বা ফেভারিট প্রশ্নের আজ রিভিশনের দিন${due.length > DAILY_MAX ? ` <small class="muted">(মোট ${bn(due.length)}টি জমেছে, আজ ${bn(DAILY_MAX)}টি)</small>` : ''}।</p>
+         <button class="btn primary block" data-act="review">${I('pen')}রিভিশন শুরু করুন</button>`
+      : `<p class="small muted" style="margin:8px 0 0">আজকের রিভিশন শেষ। পরের রিভিশন ${dayText(nd)}।</p>`}
+    <p class="small muted" style="margin:10px 0 0">বক্সে আছে ${bn(inBox)}টি প্রশ্ন · আয়ত্ত হয়েছে ${bn(Object.keys(Store.data.mastered).length)}টি</p>
+  </section>`;
+}
+function bindReview() {
+  const b = $view().querySelector('[data-act="review"]');
+  if (b) b.onclick = () => startPractice(dueList().slice(0, DAILY_MAX), 'আজকের রিভিশন');
 }
 
 /* ---------- প্র্যাকটিস সেটআপ ---------- */
@@ -242,7 +316,7 @@ function poolFor(cfg) {
   if (cfg.by === 'exam') return Q.filter((q) => q.b === cfg.b);
   return Q;
 }
-function seenCount(pool) { const a = Store.data.attempts; return pool.filter((q) => a[q.id]).length; }
+function seenCount(pool) { return pool.filter((q) => seenNow(q.id)).length; }
 
 function viewPracticeSetup() {
   const Q = BANK.questions;
@@ -513,11 +587,55 @@ function reviewItem(q, chosen) {
   const fav = Store.isFav(q.id);
   return `<details class="rel" style="margin:0 0 8px">
     <summary>${metaLine(q)} ${esc(q.q || 'চিত্রভিত্তিক প্রশ্ন')}</summary>
-    <div class="spread"><div class="small">${state}</div><span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${I('star')}</button></span></div>
+    <div class="spread"><div class="small">${state}${boxLine(q.id)}</div><span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${I('star')}</button></span></div>
     ${qImgHTML(q)}
     <p class="ans" style="color:var(--ok);font-weight:600">সঠিক উত্তর: ${esc(ansText(q))}</p>
     <div class="exp">${expHTML(q)}</div>
   </details>`;
+}
+/* খাতার প্রশ্ন: আগে উত্তর লুকানো MCQ; উত্তর দিলে ফল, ভুল হলে সাথে সাথে ব্যাখ্যা */
+const nbChosen = {};
+function nbQuizInner(q) {
+  const chosen = q.id in nbChosen ? nbChosen[q.id] : null, answered = chosen !== null;
+  const fav = Store.isFav(q.id);
+  const opts = q.o.map((o, k) => {
+    let cls = '';
+    if (answered) { if (k === q.a) cls = 'ok'; else if (k === chosen) cls = 'bad'; }
+    return `<button class="opt ${cls}" data-nbk="${k}" ${answered ? 'disabled' : ''}><span class="l">${LETTERS[k]}</span><span class="t">${esc(o)}</span></button>`;
+  }).join('');
+  let after = '';
+  if (answered) {
+    const right = q.a != null && chosen === q.a;
+    const verdict = q.a == null ? `<div class="verdict warn">${I('alert')}এই প্রশ্নের কোনো অপশনই সঠিক নয়।</div>`
+      : right ? `<div class="verdict ok">${I('check')}সঠিক উত্তর!</div>`
+        : `<div class="verdict bad">${I('x')}ভুল হয়েছে। সঠিক উত্তর: (${LETTERS[q.a]}) ${esc(q.o[q.a])}</div>`;
+    const exp = `<div class="exp"><h3>ব্যাখ্যা</h3>${expHTML(q)}</div>`;
+    after = verdict + (right ? `<details class="nbexp"><summary>ব্যাখ্যা দেখুন</summary>${exp}</details>` : exp)
+      + `<button class="btn block" data-nbagain style="margin-top:4px">আবার চেষ্টা করুন</button>`;
+  }
+  return `<div class="spread"><div class="meta">${metaLine(q)} প্রশ্ন ${bn(q.n)} · ${esc(SUBJ[q.s])}${boxLine(q.id)}</div>
+      <span class="qtools">${reportBtn(q)}<button class="star ${fav ? 'on' : ''}" data-fav="${q.id}" aria-label="ফেভারিট">${I('star')}</button></span></div>
+    <div class="qtext">${esc(q.q || 'চিত্রভিত্তিক প্রশ্ন')}</div>${qImgHTML(q)}
+    <div class="opts">${opts}</div>${after}`;
+}
+const nbQuizItem = (q) => `<article class="nbq" data-nbq="${q.id}">${nbQuizInner(q)}</article>`;
+function bindNbQuiz() {
+  $view().querySelectorAll('[data-nbq]').forEach((el) => {
+    const q = BY_ID[el.dataset.nbq];
+    const paint = () => { el.innerHTML = nbQuizInner(q); wire(); };
+    const wire = () => {
+      el.querySelectorAll('[data-nbk]').forEach((b) => (b.onclick = () => {
+        const k = +b.dataset.nbk; nbChosen[q.id] = k;
+        Store.record(q.id, q.a == null ? null : k === q.a); Store.save();
+        paint();
+      }));
+      const again = el.querySelector('[data-nbagain]');
+      if (again) again.onclick = () => { delete nbChosen[q.id]; paint(); };
+      const st = el.querySelector('[data-fav]');
+      if (st) st.onclick = (e) => { e.preventDefault(); st.classList.toggle('on', Store.toggleFav(q.id)); };
+    };
+    wire();
+  });
 }
 function bindFavButtons() {
   $view().querySelectorAll('[data-fav]').forEach((b) => (b.onclick = (e) => {
@@ -530,7 +648,8 @@ function bindFavButtons() {
 let nbTab = 'wrong';
 function viewNotebook() {
   const att = Store.data.attempts;
-  const wrong = BANK.questions.filter((q) => att[q.id] && att[q.id].ok === false);
+  const box = Store.data.box;
+  const wrong = Object.keys(box).filter((id) => box[id].src === 'w' && BY_ID[id]).sort((a, b) => box[a].due - box[b].due).map((id) => BY_ID[id]);
   const fav = Store.data.fav.map((id) => BY_ID[id]).filter(Boolean);
   const hist = Store.data.history;
   const list = nbTab === 'wrong' ? wrong : fav;
@@ -541,17 +660,51 @@ function viewNotebook() {
     <button data-tab="fav" class="${nbTab === 'fav' ? 'on' : ''}">ফেভারিট (${bn(fav.length)})</button>
     <button data-tab="hist" class="${nbTab === 'hist' ? 'on' : ''}">ইতিহাস (${bn(hist.length)})</button>
   </div>
+  ${nbTab !== 'hist' ? reviewCardHTML() : ''}
+  ${nbTab !== 'hist' ? `<details class="card howbox"><summary>৫ বক্স পদ্ধতি কীভাবে কাজ করে?</summary>
+    <p class="small">ভুল করা বা তারা চিহ্ন দেওয়া প্রশ্ন বক্স ১-এ যায়। নির্দিষ্ট দিনে সঠিক হলে পরের বক্সে ওঠে, আর ভুল হলে আবার বক্স ১-এ ফেরে।</p>
+    <div class="tw"><table><thead><tr><th>বক্স</th><th>সঠিক হলে আবার আসবে</th></tr></thead><tbody>${BOX_GAP.map((g, i) => `<tr><td>${bn(i + 1)}</td><td>${bn(g)} দিন পর</td></tr>`).join('')}</tbody></table></div>
+    <p class="small muted">বক্স ৫-এও সঠিক হলে প্রশ্নটি “আয়ত্ত হয়েছে”, তালিকা থেকে বেরিয়ে যায়। রিভিশনের দিনের আগে সঠিক করলে বক্স বদলায় না।</p>
+  </details>` : ''}
   <a class="btn block" href="#/guide" style="margin-bottom:16px">${I('archive')}বিগত প্রশ্ন সংকলন (PDF)</a>
   ${nbTab === 'hist' ? `<section class="card">${hist.length ? `<table><thead><tr><th>পরীক্ষা</th><th class="num">ফল</th></tr></thead><tbody>${hist.map((h) => `<tr><td>${esc(h.label)}<div class="small muted">${new Date(h.date).toLocaleDateString('bn-BD')} · ${h.mode === 'mock' ? 'মক টেস্ট' : 'প্র্যাকটিস'}</div></td><td class="num">${bn(h.c)}/${bn(h.n)}${h.mode === 'mock' ? `<div class="small muted">নম্বর ${bn(h.score)}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">এখনো কোনো পরীক্ষা দেননি।</p>'}</section>`
     : `<section class="card">
-      ${list.length ? `<button class="btn primary block" data-act="practice" style="margin-bottom:12px">এগুলো প্র্যাকটিস করুন</button>${list.map((q) => reviewItem(q, undefined)).join('')}`
-        : `<p class="empty">${nbTab === 'wrong' ? 'কোনো ভুল প্রশ্ন জমা নেই।' : 'প্রশ্নের পাশের তারা চিহ্ন চাপলে এখানে জমা থাকবে — যেগুলো আন্দাজে মিলেছে বা আবার পড়তে চান।'}</p>`}
-    </section>`}`;
+      ${list.length ? `<button class="btn block" data-act="practice" style="margin-bottom:8px">সবগুলো এখনই প্র্যাকটিস করুন</button><p class="small muted" style="margin:0 0 4px">এখানেই উত্তর দিন। ভুল হলে নিচে ব্যাখ্যা আসবে।</p>${list.map((q) => nbQuizItem(q)).join('')}`
+        : `<p class="empty">${nbTab === 'wrong' ? 'বক্সে কোনো ভুল প্রশ্ন নেই।' : 'প্রশ্নের পাশের তারা চিহ্ন চাপলে এখানে জমা থাকবে — যেগুলো আন্দাজে মিলেছে বা আবার পড়তে চান।'}</p>`}
+    </section>`}
+  ${resetHTML()}`;
   const v = $view();
+  bindReview(); bindReset(); bindNbQuiz();
   v.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { nbTab = b.dataset.tab; viewNotebook(); }));
   const p = v.querySelector('[data-act="practice"]');
   if (p) p.onclick = () => startPractice(shuffle(list).slice(0, 50), nbTab === 'wrong' ? 'আমার ভুল প্রশ্ন' : 'ফেভারিট প্রশ্ন');
-  bindFavButtons();
+}
+
+/* ---------- নতুন রাউন্ড / সব মুছুন ---------- */
+function resetHTML() {
+  const seen = BANK.questions.filter((q) => seenNow(q.id)).length;
+  return `<section class="card">
+    <h2>নতুন করে শুরু</h2>
+    <p class="small muted">এই রাউন্ডে ${bn(seen)}/${bn(BANK.questions.length)}টি প্রশ্ন দেখা হয়েছে (রাউন্ড ${bn(Store.data.round)})।</p>
+    <button class="btn block" data-act="round" style="margin-top:8px">নতুন রাউন্ড শুরু করুন</button>
+    <p class="small muted" style="margin:6px 0 12px">সব প্রশ্ন আবার “নতুন” হিসেবে আসবে। উইক জোন, বক্সের প্রশ্ন, ফেভারিট আর ইতিহাস থেকে যাবে।</p>
+    <button class="btn block danger" data-act="wipe">সব মুছে ফেলুন</button>
+    <p class="small muted" style="margin-top:6px">উত্তর, ভুল, বক্স, ফেভারিট, ইতিহাস সব মুছে শূন্য থেকে শুরু। এটা আর ফেরানো যাবে না।</p>
+  </section>`;
+}
+function bindReset() {
+  const v = $view();
+  const r = v.querySelector('[data-act="round"]');
+  if (r) r.onclick = () => {
+    if (!confirm(`রাউন্ড ${bn(Store.data.round + 1)} শুরু হবে: সব প্রশ্ন আবার নতুন হিসেবে আসবে। আপনার উইক জোন, বক্সের প্রশ্ন, ফেভারিট আর ইতিহাস থাকবে। শুরু করবেন?`)) return;
+    Store.data.round++; Store.data.roundStart = Date.now(); Store.save(); go('');
+  };
+  const w = v.querySelector('[data-act="wipe"]');
+  if (w) w.onclick = () => {
+    if (!confirm('সব উত্তর, ভুল, বক্সের প্রশ্ন, ফেভারিট আর ইতিহাস মুছে যাবে। এটা আর ফেরানো যাবে না। মুছবেন?')) return;
+    if (!confirm('শেষবার নিশ্চিত করুন: সত্যিই সব মুছে ফেলবেন?')) return;
+    Store.data = freshData(); Store.data.wipedAt = Date.now(); Store.save(); go('');
+  };
 }
 
 /* ---------- বিগত প্রশ্ন সংকলন (টপিক ধরে আগের বছরের সব প্রশ্ন) ---------- */
@@ -684,7 +837,7 @@ function viewAbout() {
     <button class="btn" data-act="reset">আমার সব প্রোগ্রেস মুছে ফেলুন</button>
   </section>${makerHTML()}`;
   $view().querySelector('[data-act="reset"]').onclick = () => {
-    if (confirm('সব উত্তর, ভুল, ফেভারিট আর ইতিহাস মুছে যাবে। নিশ্চিত?')) { Store.data = { attempts: {}, fav: [], history: [] }; Store.save(); go(''); }
+    if (confirm('সব উত্তর, ভুল, ফেভারিট আর ইতিহাস মুছে যাবে। নিশ্চিত?')) { Store.data = freshData(); Store.data.wipedAt = Date.now(); Store.save(); go(''); }
   };
 }
 

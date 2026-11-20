@@ -84,7 +84,18 @@ RA.saveProfile = async ({ whatsapp, bcs, consent }) => {
 };
 
 /* ---------- অগ্রগতি sync ---------- */
-function mergeData(local, remote) {
+/* "সব মুছুন"-এর সময় (wipedAt) যে দিকে পুরনো, সেই দিকের মোছার আগের ডেটা বাদ যায়,
+   যাতে অন্য ডিভাইসের পুরনো প্রোগ্রেস আবার ফিরে না আসে। */
+function sinceWipe(d, w) {
+  if (!w || (d.wipedAt || 0) >= w) return d;
+  const att = {};
+  for (const [id, a] of Object.entries(d.attempts || {})) if ((a.last || 0) > w) att[id] = a;
+  return { attempts: att, fav: [], history: (d.history || []).filter((h) => new Date(h.date).getTime() > w),
+    box: {}, mastered: {}, round: 1, roundStart: 0, wipedAt: w };
+}
+function mergeData(local0, remote0) {
+  const w = Math.max(local0.wipedAt || 0, remote0.wipedAt || 0);
+  const local = sinceWipe(local0, w), remote = sinceWipe(remote0, w);
   const out = { attempts: Object.assign({}, remote.attempts || {}), fav: [], history: [] };
   for (const [id, a] of Object.entries(local.attempts || {})) {
     const r = out.attempts[id];
@@ -95,6 +106,21 @@ function mergeData(local, remote) {
   out.history = [...(local.history || []), ...(remote.history || [])]
     .filter((h) => { const k = String(h.date) + h.label; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((x, y) => (new Date(y.date) - new Date(x.date))).slice(0, 200);
+  /* ৫ বক্স: যে দিকে প্রশ্নটার উত্তর পরে দেওয়া হয়েছে, বক্সের অবস্থা সেই দিকের */
+  out.box = {}; out.mastered = {};
+  const lb = local.box || {}, rb = remote.box || {}, lm = local.mastered || {}, rm = remote.mastered || {};
+  const last = (d, id) => ((d.attempts || {})[id] || {}).last || 0;
+  for (const id of new Set([...Object.keys(lb), ...Object.keys(rb), ...Object.keys(lm), ...Object.keys(rm)])) {
+    const useLocal = last(local, id) >= last(remote, id);
+    const [b1, m1, b2, m2] = useLocal ? [lb, lm, rb, rm] : [rb, rm, lb, lm];
+    if (b1[id]) out.box[id] = b1[id];
+    else if (m1[id]) out.mastered[id] = m1[id];
+    else if (b2[id]) out.box[id] = b2[id];
+    else if (m2[id]) out.mastered[id] = m2[id];
+  }
+  out.round = Math.max(local.round || 1, remote.round || 1);
+  out.roundStart = Math.max(local.roundStart || 0, remote.roundStart || 0);
+  if (w) out.wipedAt = w;
   return out;
 }
 let syncTimer = null, dirty = false;

@@ -283,3 +283,18 @@ ul.plain { padding-left: 20px; margin: 0 0 16px; }
 .err { color: var(--bad); margin: 4px 0 0; }
 
 [hidden] { display: none !important; }
+
+/* ৫ বক্স রিভিশন */
+.boxl { display: block; margin-top: 4px; color: var(--accent); font-size: .85rem; }
+.boxl.ok { color: var(--ok); }
+.review { border-color: var(--accent); }
+.howbox summary { cursor: pointer; font-weight: 600; }
+.howbox[open] summary { margin-bottom: 8px; }
+.btn.danger { color: var(--bad); border-color: var(--bad); }
+.btn.danger:hover { background: var(--bad-soft); }
+
+/* খাতার MCQ */
+.nbq { border-top: 1px solid var(--line); padding: 18px 0 14px; }
+.nbq .qtext { font-size: 1.12rem; margin: 6px 0 12px; }
+.nbq .meta { margin: 0; }
+.nbexp summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 4px 0; }
